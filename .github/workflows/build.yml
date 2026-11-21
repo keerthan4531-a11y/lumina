@@ -163,7 +163,14 @@ jobs:
           ./gradlew :app:assembleInternalDebug -x lint -x test --build-cache --parallel --stacktrace --no-daemon 2>&1 | tee /tmp/assemble.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
-            { echo "### browser assemble failed (exit $code)"; echo '```'; grep -vE "^[[:space:]]*$" /tmp/assemble.log | tail -c 7000; echo '```'; } > /tmp/abody.md
+            {
+              echo "### browser assemble failed (exit $code)"
+              echo '```'
+              grep -E "^> Task .*FAILED|^FAILURE:|^e: |error: |Caused by:" /tmp/assemble.log | head -30
+              echo '---'
+              sed -n '/What went wrong/,+15p' /tmp/assemble.log | head -30
+              echo '```'
+            } > /tmp/abody.md
             # gh infers the repo from cwd — app-fork has origin=duckduckgo/Android, so be explicit
             cd "$GITHUB_WORKSPACE"
             gh issue create -R "${{ github.repository }}" --title "assemble log $(date -u +%FT%TZ)" --body-file /tmp/abody.md || true
