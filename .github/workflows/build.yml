@@ -3,7 +3,7 @@ name: build
 on:
   push:
     branches: ["**"]
-    tags: ["v*"]
+    tags: ["v*", "fork-*"]
   workflow_dispatch:
     inputs:
       publish:
