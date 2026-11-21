@@ -160,7 +160,6 @@ CANDIDATE_PATTERNS = [
     r"^windows(-|$)",
     r"^devicemigration(-|$)",
     r"^widget(-|$)",
-    r"^duckchat(-|$)",
 ]
 
 IGNORED_DIRS = {
@@ -363,6 +362,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--repo", required=True, help="path to the duckduckgo/Android checkout")
     ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument(
+        "--diet",
+        action="store_true",
+        help="also delete telemetry/dead-weight modules (P1 — needs per-module verification)",
+    )
     args = ap.parse_args()
 
     repo = Path(args.repo).resolve()
@@ -382,7 +386,10 @@ def main() -> int:
     rebrand_strings(repo, dry)
 
     print("3/6 module diet (dependency-aware)")
-    apply_diet(repo, dry)
+    if args.diet:
+        apply_diet(repo, dry)
+    else:
+        print("  = skipped — P0 is rebrand-only. Pass --diet for the P1 module diet.")
 
     print("4/6 flavours")
     single_flavour(repo, dry)
