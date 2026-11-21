@@ -102,7 +102,9 @@ jobs:
   # Manual only: heavy (~25 min) and expected to fail until P3/P4 wiring lands.
   # ---------------------------------------------------------------------------
   browser-fork-apk:
-    if: inputs.fork == true
+    # run manually (inputs.fork) or by pushing a tag named fork-* — that is how the
+    # fork/rebrand path gets verified without touching the default branch
+    if: inputs.fork == true || startsWith(github.ref, 'refs/tags/fork-')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     continue-on-error: true
