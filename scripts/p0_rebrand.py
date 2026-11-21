@@ -151,7 +151,7 @@ IGNORED_DIRS = {
     "build", "build-cache", ".maestro",
 }
 
-PROJECT_REF = re.compile(r"project\(\s*['\"](:[-\w.:]+)['\"]\s*\)")
+PROJECT_REF = re.compile(r"project\(\s*(?:path\s*:\s*)?['\"](:[-\w.:]+)['\"]")
 DEP_LINE = re.compile(
     r"^\s*(implementation|api|compileOnly|runtimeOnly|kapt|ksp|debugImplementation|"
     r"releaseImplementation|testImplementation|androidTestImplementation|internalImplementation)\b"
