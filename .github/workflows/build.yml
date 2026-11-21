@@ -24,6 +24,7 @@ concurrency:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   # ---------------------------------------------------------------------------
@@ -139,9 +140,19 @@ jobs:
           node-version: "20"
 
       - name: Fork + rebrand
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           chmod +x scripts/*.sh
-          SKIP_NPM=0 ./scripts/p0-fork.sh
+          set +e
+          SKIP_NPM=0 ./scripts/p0-fork.sh 2>&1 | tee /tmp/fork.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            # the run log is not reachable from every environment; an issue is
+            { echo "### fork/rebrand failed (exit $code)"; echo '```'; tail -c 7000 /tmp/fork.log; echo '```'; } > /tmp/body.md
+            gh issue create --title "fork log $(date -u +%FT%TZ)" --body-file /tmp/body.md || true
+            exit "$code"
+          fi
 
       - name: Build browser APK
         working-directory: app-fork
