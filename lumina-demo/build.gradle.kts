@@ -33,6 +33,17 @@ android {
         debug {
             isMinifyEnabled = false
         }
+        release {
+            // demo distribution: R8 + resource shrinking, signed with the debug key so it
+            // installs anywhere. ~56 MB debug -> ~10-15 MB release.
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
+            signingConfig = signingConfigs.getByName("debug")
+        }
     }
 }
 

@@ -66,19 +66,19 @@ jobs:
           gradle-version: "8.9"
 
       - name: Build APK
-        run: gradle :lumina-demo:assembleDebug --stacktrace --no-daemon
+        run: gradle :lumina-demo:assembleRelease --stacktrace --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: lumina-demo-debug
-          path: lumina-demo/build/outputs/apk/debug/*.apk
+          name: lumina-demo-release
+          path: lumina-demo/build/outputs/apk/release/*.apk
           if-no-files-found: error
 
       - name: Collect APK
         run: |
           mkdir -p out
-          cp lumina-demo/build/outputs/apk/debug/*.apk out/lumina-demo.apk
+          cp lumina-demo/build/outputs/apk/release/*.apk out/lumina-demo.apk
           ls -lh out/
 
       - name: Publish release
