@@ -221,6 +221,28 @@ def strip_dangling_deps(repo: Path, dry: bool) -> None:
         print("  = no dangling module dependencies")
 
 
+def remove_gradle_block(s: str, name: str) -> str:
+    """
+    Remove a Groovy block by its name (`play { ... }`, `variantFilter { ... }`),
+    including the name token. Brace-matched, so nested blocks survive.
+    """
+    m = re.search(r"\n[ \t]*" + re.escape(name) + r"[ \t]*\{", s)
+    if not m:
+        return s
+    start = m.start() + 1                      # skip the leading newline
+    brace = s.index("{", start)
+    depth, i = 0, brace
+    while i < len(s):
+        if s[i] == "{":
+            depth += 1
+        elif s[i] == "}":
+            depth -= 1
+            if depth == 0:
+                return s[:start] + s[i + 1:]
+        i += 1
+    return s
+
+
 def single_flavour(repo: Path, dry: bool) -> None:
     """
     Keep ONE flavour: `internal`.
