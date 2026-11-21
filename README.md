@@ -3,8 +3,10 @@
 A liquid-glass, lightweight, fast, privacy-first Android browser with native AI features,
 built on top of the (Apache-2.0) DuckDuckGo Android codebase.
 
-> **Status:** P0 tooling + design prototype done. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
-> No APK builds in this sandbox (no JDK/Android SDK here) — the fork build runs on your machine.
+> **Status:** the glass UI **builds and installs** — [download the demo APK](https://github.com/keerthan4531-a11y/lumina/releases/latest)
+> (19.4 MB). CI builds every push. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
+
+[![build](https://github.com/keerthan4531-a11y/lumina/actions/workflows/build.yml/badge.svg)](https://github.com/keerthan4531-a11y/lumina/actions/workflows/build.yml)
 
 ## Why this repo exists
 
@@ -40,6 +42,8 @@ result cards over a skinned SERP — instead of trying to rewrite a browser in a
 | [`preview/`](preview/) | **Interactive liquid-glass prototype** (home · omnibar · results · tabs · sheets) with theme/tier/reduced-motion controls |
 | [`scripts/`](scripts/) | P0 fork + rebrand + telemetry strip (`p0-fork.sh`, `p0_rebrand.py`) — tested against upstream |
 | [`serp/`](serp/) | SERP skin: `lumina-skin.css` / `.js`, `selectors.json`, `LuminaSerpSkin.kt` (document-start injection) |
+| [`lumina-ui/`](lumina-ui/) | **The real Compose module** — glass surface, omnibar, result/answer cards, bottom bar, sheet, NTP, motion |
+| [`lumina-demo/`](lumina-demo/) | Installable demo app that wires the UI into screens (this is what CI builds) |
 | [`glass/`](glass/) | Reference Compose glass code (tokens, GlassOmnibar, GlassNtp, motion) to drop into `lumina-ui` |
 
 ## Upstream sources
@@ -49,6 +53,11 @@ result cards over a skinned SERP — instead of trying to rewrite a browser in a
   published as `io.github.kyant0:backdrop` on Maven Central, or vendored as a module.
 
 ## Quick start
+
+```bash
+# build the installable demo APK (needs JDK 17 + Android SDK 35)
+gradle :lumina-demo:assembleRelease        # → lumina-demo/build/outputs/apk/release/
+```
 
 ```bash
 # 1. see the design (no toolchain needed)

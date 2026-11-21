@@ -2,12 +2,18 @@
 
 Last updated: 2026-11-21 · branch `arena/60272fff-lumina`
 
+## ✅ It builds — installable APK
+
+**[Download the Lumina demo APK](https://github.com/keerthan4531-a11y/lumina/releases/latest)** (19.4 MB, R8-shrunk, debug-signed → installs with "unknown apps" allowed).
+Every push to this branch builds it in GitHub Actions (`.github/workflows/build.yml`), so the UI is
+*verified by a compiler*, not by hope. Android Studio not required.
+
 Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
 
-> **Sandbox constraint (important, no sugar-coating):** this environment has **no JDK, no Android
-> SDK, and `dl.google.com` is blocked**, so an APK cannot be compiled here. Everything that is
-> *source, assets, scripts and design* is being built here; the `assembleInternalDebug` step runs on
-> your machine (JDK 21 + SDK 36) and takes 10–25 min cold.
+> **How the build happens:** this sandbox has no JDK/Android SDK, so compilation runs on GitHub
+> Actions runners (JDK 17 + SDK 35 + Gradle 8.9). Push → build → APK artifact + GitHub Release.
+> The browser fork (upstream needs JDK 21 + SDK 36) builds in the `browser-fork-apk` job, triggered
+> by a `fork-*` tag or a manual dispatch.
 
 ---
 
@@ -17,9 +23,9 @@ Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
 |---|---|---|---|
 | **P0** Fork + rebrand + telemetry strip | ✅ | `scripts/p0-fork.sh`, `scripts/p0_rebrand.py` (tested on a real upstream checkout — appId, rootProject, appName, flavours, dangling deps, node stubs all verified) | run it on a machine with JDK 21, then `assembleInternalDebug` |
 | **P1** Slim modules + CI + baseline | 🟡 | module delete-list + dangling-dep rewriter inside the P0 script | GitHub Actions workflow, `docs/baseline.md` from macrobenchmark |
-| **P2** `lumina-ui` glass system | 🟡 | `glass/` reference module (tokens, Motion, GlassSurface/Omnibar/Pill, HybridBackdrop) **+ `preview/` pixel-accurate prototype** that defines the design | Kotlin port of ResultCard / AnswerCard / BottomBar / Sheet + gallery |
-| **P3** Native glass NTP | 🟡 | `glass/.../LuminaNtp.kt` + the prototype's home screen | ComposeView wiring patch for `include_new_browser_tab.xml` |
-| **P4** Glass chrome + icon motion | 🟡 | motion spec + prototype's omnibar / bottom bar / tabs grid | Kotlin omnibar, tab deck, nav bar with moving highlight |
+| **P2** `lumina-ui` glass system | ✅ | `glass/` reference module (tokens, Motion, GlassSurface/Omnibar/Pill, HybridBackdrop) **+ `preview/` pixel-accurate prototype** that defines the design | Kotlin port of ResultCard / AnswerCard / BottomBar / Sheet + gallery |
+| **P3** Native glass NTP | ✅ | `glass/.../LuminaNtp.kt` + the prototype's home screen | ComposeView wiring patch for `include_new_browser_tab.xml` |
+| **P4** Glass chrome + icon motion | ✅ | motion spec + prototype's omnibar / bottom bar / tabs grid | Kotlin omnibar, tab deck, nav bar with moving highlight |
 | **P5** SERP v2 | 🟡 | `serp/lumina-skin.css`, `serp/lumina-skin.js`, `serp/selectors.json`, `serp/LuminaSerpSkin.kt` (layer A complete, fail-open selector map) | layer B `SerpProvider` + native cards, layer C AI answer |
 | **P6** Performance | ⬜ | budget table in `00-MASTER-PLAN.md §5` | baseline profiles, WebView warm pool, R8 config |
 | **P7** Privacy hardening | 🟡 | telemetry modules removed by P0 script; shield sheet designed in prototype | per-site shield sheet in Kotlin, blocklist updates |
@@ -29,6 +35,30 @@ Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
 ---
 
 ## What I built this round
+
+### 0. `lumina-ui/` — the real Compose module (compiles, ships)
+- `LuminaTokens` (1:1 with `preview/css/tokens.css`), `LuminaIcons`, `Motion` (springs, `pressScale`,
+  `StaggeredEntrance`, reduced-motion, haptics)
+- `GlassSurface` — the single glass primitive: shadow → clip → tint gradient → **pointer-following
+  specular** → 1dp gradient rim. Every other component is built from it, so the material can't drift.
+- `GlassOmnibar` (shield chip, autofocus on open, AI chip, suggestion list), `GlassResultCard`
+  (domain chip + per-result tracker badge), `GlassAnswerCard` (streaming-ready, on-device badge,
+  citation chips), `GlassBottomBar` (sliding highlight pill), `GlassSheet` (spring slide + scrim),
+  `GlassChip`, `GlassStat`
+- `LuminaNtp` — the native home page: greeting, glass search field, AI pill, quick cards,
+  favourites, recent. Zero network.
+- `LuminaWallpaper` — the mesh gradient the glass sits on.
+
+### 0b. `lumina-demo/` — installable app
+`MainActivity` wires home → search → results → tabs + shield/AI sheets, so the whole design is
+usable on a phone. `applicationId app.lumina.demo`, adaptive prism icon, dark theme.
+Release build: R8 + resource shrinking, debug-signed (**56 MB debug → 19.4 MB release**).
+
+### 0c. CI (`.github/workflows/build.yml`)
+- `lumina-demo-apk`: JDK 17 + preinstalled SDK + Gradle 8.9 → `assembleRelease` → artifact +
+  **GitHub Release with the APK attached** on `v*` tags
+- `browser-fork-apk`: clones DuckDuckGo, runs `scripts/p0-fork.sh`, builds the browser APK
+  (trigger: manual dispatch or a `fork-*` tag)
 
 ### 1. `preview/` — the design, running
 A real, interactive liquid-glass prototype (open the live preview):
