@@ -22,7 +22,12 @@ import argparse
 import re
 import shutil
 import sys
+import tempfile
 from pathlib import Path
+
+# Backups must live OUTSIDE the repo: Android's resource merger rejects any non-.xml
+# file inside res/ (that is exactly what "strings.xml.lumina.bak" triggered).
+BACKUP_ROOT = Path(tempfile.gettempdir()) / "lumina-p0-backup"
 
 # Modules that exist purely to measure users. Removing the directory is enough:
 # settings.gradle auto-discovers modules by scanning for build files.
@@ -77,11 +82,19 @@ def write(p: Path, s: str, dry: bool, note: str) -> None:
     if dry:
         print(f"  · would write {p.name}: {note}")
         return
-    backup = p.with_suffix(p.suffix + ".lumina.bak")
-    if not backup.exists():
-        backup.write_text(read(p), encoding="utf-8")
+    try:
+        rel = p.resolve().relative_to(REPO_ROOT)
+        backup = BACKUP_ROOT / rel
+        if not backup.exists():
+            backup.parent.mkdir(parents=True, exist_ok=True)
+            backup.write_text(read(p), encoding="utf-8")
+    except (ValueError, AttributeError):
+        pass  # no repo root known — git is the backup anyway
     p.write_text(s, encoding="utf-8")
-    print(f"  ✓ {p.relative_to(p.parents[len(p.parents) - 1])}: {note}")
+    print(f"  ✓ {note}")
+
+
+REPO_ROOT: Path | None = None
 
 
 def short(p: Path, repo: Path) -> str:
@@ -353,6 +366,8 @@ def main() -> int:
     args = ap.parse_args()
 
     repo = Path(args.repo).resolve()
+    global REPO_ROOT
+    REPO_ROOT = repo
     if not (repo / "settings.gradle").exists():
         print(f"error: {repo} does not look like the duckduckgo/Android repo", file=sys.stderr)
         return 2
