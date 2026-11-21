@@ -84,7 +84,7 @@ jobs:
 
       - name: Publish release
         # tags always publish; manual dispatch publishes when `publish` is true
-        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
+        if: startsWith(github.ref, 'refs/tags/v') || startsWith(github.ref, 'refs/tags/fork-') || inputs.publish == true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -187,3 +187,19 @@ jobs:
           name: lumina-browser-debug
           path: app-fork/app/build/outputs/apk/internal/debug/*.apk
           if-no-files-found: warn
+
+      - name: Publish browser APK
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p out
+          cp app-fork/app/build/outputs/apk/internal/debug/*.apk out/lumina-browser.apk
+          ls -lh out/
+          TAG="${GITHUB_REF_NAME}-browser"
+          NOTES="Lumina browser (P0) — DuckDuckGo engine, rebranded: app id app.lumina.browser,
+          telemetry modules not yet removed, glass UI not yet wired (that is P2-P4).
+          Debug build, debug-signed: enable 'install unknown apps'."
+          gh release create "$TAG" out/lumina-browser.apk \
+            --title "Lumina browser $TAG" --notes "$NOTES" \
+            || gh release upload "$TAG" out/lumina-browser.apk --clobber
