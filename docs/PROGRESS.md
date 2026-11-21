@@ -2,10 +2,14 @@
 
 Last updated: 2026-11-21 · branch `arena/60272fff-lumina`
 
-## ✅ It builds — installable APK
+## ✅ It builds — two installable APKs
 
-**[Download the Lumina demo APK](https://github.com/keerthan4531-a11y/lumina/releases/latest)** (19.4 MB, R8-shrunk, debug-signed → installs with "unknown apps" allowed).
-Every push to this branch builds it in GitHub Actions (`.github/workflows/build.yml`), so the UI is
+| APK | What it is | Link |
+|---|---|---|
+| **Lumina demo** (~19 MB, R8) | the glass UI running on a device — home, omnibar, results, tabs, sheets | [releases/latest](https://github.com/keerthan4531-a11y/lumina/releases/latest) |
+| **Lumina browser (P0)** (~88 MB, debug) | **the real thing**: duckduckgo/Android forked, rebranded to `app.lumina.browser` | [fork tags → `-browser` release](https://github.com/keerthan4531-a11y/lumina/releases) |
+
+Every push builds both in GitHub Actions (`.github/workflows/build.yml`), so the UI and the fork are
 *verified by a compiler*, not by hope. Android Studio not required.
 
 Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
@@ -21,7 +25,7 @@ Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
 
 | Phase | Status | What exists in this repo right now | What's left |
 |---|---|---|---|
-| **P0** Fork + rebrand + telemetry strip | ✅ (config) | `scripts/p0-fork.sh`, `scripts/p0_rebrand.py` (tested on a real upstream checkout — appId, rootProject, appName, flavours, dangling deps, node stubs all verified) | **verified in CI**: `./gradlew help` configuration now passes on the rebranded fork; `assembleInternalDebug` fails next (expected — removed modules are still *used* by kept modules, see below) |
+| **P0** Fork + rebrand (build green) | ✅ | `scripts/p0-fork.sh`, `scripts/p0_rebrand.py` (tested on a real upstream checkout — appId, rootProject, appName, flavours, dangling deps, node stubs all verified) | **`assembleInternalDebug` passes in CI** → rebranded browser APK published. Telemetry module deletion is deferred to P1 (`--diet` flag, opt-in) because `:app` resources and feature modules reference them |
 | **P1** Slim modules + CI + baseline | 🟡 | module delete-list + dangling-dep rewriter inside the P0 script | GitHub Actions workflow, `docs/baseline.md` from macrobenchmark |
 | **P2** `lumina-ui` glass system | ✅ | `glass/` reference module (tokens, Motion, GlassSurface/Omnibar/Pill, HybridBackdrop) **+ `preview/` pixel-accurate prototype** that defines the design | Kotlin port of ResultCard / AnswerCard / BottomBar / Sheet + gallery |
 | **P3** Native glass NTP | ✅ | `glass/.../LuminaNtp.kt` + the prototype's home screen | ComposeView wiring patch for `include_new_browser_tab.xml` |
@@ -114,13 +118,19 @@ mirror `LuminaSpring`. So the prototype is the spec, not a mood board.
 | #4–5 | ✗ fork | `Project with path ':anrs-api' could not be found` — deleting `anrs/` also deletes `anrs-api`/`anrs-impl`; fixed by stripping dependencies via **set-difference** against real module discovery |
 | #6 | ✗ fork | `remove_gradle_block` lost in a refactor (NameError) → restored + regression-tested on a mini repo |
 | #7 | ✓ fork config | `gradlew help` passes; `assembleInternalDebug` fails next |
-| #8 | ✗ fork assemble | kept modules still *use* what we deleted (e.g. `pir-impl` → `macos-api`, `duckchat-impl` → `sync-api`). Fix strategy: P1 makes the deletion list dependency-aware (delete the dependents too, or keep the api module) instead of only cleaning dangling lines. |
+| #8 | ✗ fork assemble | kept modules still *use* what we deleted |
+| #9 | ✗ fork assemble | `strings.xml.lumina.bak` inside `res/values/` → resource merger rejects non-.xml → backups moved **outside** the repo |
+| #10 | ✗ fork assemble | `@string/duck_chat_title` missing → `duckchat` must survive (it is the AI entry point anyway) |
+| #11 | ✗ fork assemble | CMake: `bloom_cpp` is a **git submodule** that `--depth 1` clone never fetched → `submodule update --init --recursive` added to `p0-fork.sh` |
+| #12 | ✅ **fork** | `assembleInternalDebug` green → **browser APK published** |
+| #13 | ✅ | browser APK release asset + demo release |
 
 ## Next up (in order)
 
-0. **Fork assemble green** — make the module diet dependency-aware: iteratively delete modules that
-   reference deleted ones (transitive closure), or keep `-api` modules and delete only `-impl` guts.
-   Then `assembleInternalDebug` and get the *browser* APK.
+0. ~~Fork assemble green~~ ✅ done. Next: **telemetry actually removed** — the module diet is
+   dependency-aware now (`--diet`) but `:app`'s resources and several feature modules still reference
+   the telemetry modules, so the safe path is: stub `Pixel`/`RealPixel` implementations to no-ops and
+   delete the *call sites*, then remove `pixels*`/`anrs*`/`attributed-metrics*` in P1 with verification.
 1. **Kotlin port of the prototype** — `lumina-ui`: `GlassResultCard`, `GlassAnswerCard`,
    `GlassBottomBar`, `GlassSheet`, `GlassChip` + `LuminaGalleryActivity` (P2 finish)
 2. **NTP wiring patch** — exact diff against `include_new_browser_tab.xml` + `BrowserTabFragment.kt`
