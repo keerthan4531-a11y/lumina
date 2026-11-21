@@ -21,7 +21,7 @@ Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
 
 | Phase | Status | What exists in this repo right now | What's left |
 |---|---|---|---|
-| **P0** Fork + rebrand + telemetry strip | ✅ | `scripts/p0-fork.sh`, `scripts/p0_rebrand.py` (tested on a real upstream checkout — appId, rootProject, appName, flavours, dangling deps, node stubs all verified) | run it on a machine with JDK 21, then `assembleInternalDebug` |
+| **P0** Fork + rebrand + telemetry strip | ✅ (config) | `scripts/p0-fork.sh`, `scripts/p0_rebrand.py` (tested on a real upstream checkout — appId, rootProject, appName, flavours, dangling deps, node stubs all verified) | **verified in CI**: `./gradlew help` configuration now passes on the rebranded fork; `assembleInternalDebug` fails next (expected — removed modules are still *used* by kept modules, see below) |
 | **P1** Slim modules + CI + baseline | 🟡 | module delete-list + dangling-dep rewriter inside the P0 script | GitHub Actions workflow, `docs/baseline.md` from macrobenchmark |
 | **P2** `lumina-ui` glass system | ✅ | `glass/` reference module (tokens, Motion, GlassSurface/Omnibar/Pill, HybridBackdrop) **+ `preview/` pixel-accurate prototype** that defines the design | Kotlin port of ResultCard / AnswerCard / BottomBar / Sheet + gallery |
 | **P3** Native glass NTP | ✅ | `glass/.../LuminaNtp.kt` + the prototype's home screen | ComposeView wiring patch for `include_new_browser_tab.xml` |
@@ -104,8 +104,23 @@ mirror `LuminaSpring`. So the prototype is the spec, not a mood board.
 
 ---
 
+## CI history (what the compiler actually said)
+
+| Run | Result | Fix |
+|---|---|---|
+| #1 | ✗ 16 s | `android-actions/setup-android@v3` broken on node24 runners → use the preinstalled SDK |
+| #2 | ✓ 2 m 42 s | **demo APK builds** (debug, 56 MB) |
+| #3 | ✓ | R8 + shrink → **19.4 MB release**, published to Releases |
+| #4–5 | ✗ fork | `Project with path ':anrs-api' could not be found` — deleting `anrs/` also deletes `anrs-api`/`anrs-impl`; fixed by stripping dependencies via **set-difference** against real module discovery |
+| #6 | ✗ fork | `remove_gradle_block` lost in a refactor (NameError) → restored + regression-tested on a mini repo |
+| #7 | ✓ fork config | `gradlew help` passes; `assembleInternalDebug` fails next |
+| #8 | ✗ fork assemble | kept modules still *use* what we deleted (e.g. `pir-impl` → `macos-api`, `duckchat-impl` → `sync-api`). Fix strategy: P1 makes the deletion list dependency-aware (delete the dependents too, or keep the api module) instead of only cleaning dangling lines. |
+
 ## Next up (in order)
 
+0. **Fork assemble green** — make the module diet dependency-aware: iteratively delete modules that
+   reference deleted ones (transitive closure), or keep `-api` modules and delete only `-impl` guts.
+   Then `assembleInternalDebug` and get the *browser* APK.
 1. **Kotlin port of the prototype** — `lumina-ui`: `GlassResultCard`, `GlassAnswerCard`,
    `GlassBottomBar`, `GlassSheet`, `GlassChip` + `LuminaGalleryActivity` (P2 finish)
 2. **NTP wiring patch** — exact diff against `include_new_browser_tab.xml` + `BrowserTabFragment.kt`
