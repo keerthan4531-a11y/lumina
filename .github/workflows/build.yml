@@ -156,7 +156,17 @@ jobs:
 
       - name: Build browser APK
         working-directory: app-fork
-        run: ./gradlew :app:assembleInternalDebug -x lint -x test --build-cache --parallel --stacktrace --no-daemon
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set +e
+          ./gradlew :app:assembleInternalDebug -x lint -x test --build-cache --parallel --stacktrace --no-daemon 2>&1 | tee /tmp/assemble.log
+          code=${PIPESTATUS[0]}
+          if [ "$code" -ne 0 ]; then
+            { echo "### browser assemble failed (exit $code)"; echo '```'; grep -vE "^\s*$" /tmp/assemble.log | tail -c 7000; echo '```'; } > /tmp/abody.md
+            gh issue create --title "assemble log $(date -u +%FT%TZ)" --body-file /tmp/abody.md || true
+            exit "$code"
+          fi
 
       - name: Upload browser APK
         uses: actions/upload-artifact@v4
