@@ -1,0 +1,98 @@
+name: build
+
+on:
+  push:
+    branches: ["**"]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # The fast loop: compile the glass UI and produce an installable demo APK.
+  # Nothing but the Android SDK is needed — this is how the UI gets verified.
+  # ---------------------------------------------------------------------------
+  lumina-demo-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install platform + build tools
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.9"
+
+      - name: Build demo APK
+        run: gradle :lumina-demo:assembleDebug --stacktrace --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumina-demo-debug
+          path: lumina-demo/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+  # ---------------------------------------------------------------------------
+  # The real thing: fork DuckDuckGo, rebrand it, drop the glass UI in, build a
+  # browser APK. Manual only (workflow_dispatch) because it is heavy (~15-25 min)
+  # and will fail while P3/P4 wiring is still in progress — that is expected.
+  # ---------------------------------------------------------------------------
+  browser-fork-apk:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: JDK 21 (upstream needs it for the Metro compiler plugin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install platform 36
+        run: |
+          yes | sdkmanager --licenses > /dev/null || true
+          sdkmanager "platform-tools" "platforms;android-36" "build-tools;36.0.0" || \
+          sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Fork + rebrand
+        run: |
+          chmod +x scripts/*.sh
+          SKIP_NPM=0 ./scripts/p0-fork.sh
+
+      - name: Build browser APK
+        working-directory: app-fork
+        run: ./gradlew :app:assembleInternalDebug -x lint -x test --build-cache --parallel --stacktrace --no-daemon
+
+      - name: Upload browser APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: lumina-browser-debug
+          path: app-fork/app/build/outputs/apk/internal/debug/*.apk
+          if-no-files-found: warn
