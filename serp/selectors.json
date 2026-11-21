@@ -1,0 +1,56 @@
+{
+  "_comment": "Lumina SERP selector map. Each key is a fallback LIST: first match wins, no match = no-op. Verify with the selector doctor after any upstream redesign. Remote-updatable (signed JSON), never executable code.",
+  "version": 1,
+  "verified_against": "duckduckgo.com develop @ 2026-11-21 (unverified markup — run doctor)",
+  "result": [
+    "article[data-testid='result']",
+    ".result",
+    "div.web-result",
+    "li.result"
+  ],
+  "title": [
+    "[data-testid='result-title-a']",
+    "h2.result__title a",
+    ".result__a"
+  ],
+  "snippet": [
+    "[data-result='snippet']",
+    ".result__snippet",
+    ".result-snippet"
+  ],
+  "url": [
+    "[data-testid='result-url']",
+    ".result__url",
+    ".result__url__domain"
+  ],
+  "favicon": [
+    "[data-testid='result-favicon'] img",
+    ".result__icon img",
+    ".result__favicon img"
+  ],
+  "instant_answer": [
+    "[data-testid='zci']",
+    ".zci",
+    ".module--about",
+    ".zci--answer"
+  ],
+  "related": [
+    ".related-searches a",
+    ".results--related a",
+    "[data-testid='related-searches'] a"
+  ],
+  "results_host": [
+    "#links",
+    ".results",
+    ".serp__results",
+    "[data-testid='mainline']"
+  ],
+  "hide": [
+    "#ads",
+    ".ads",
+    ".result--ad",
+    "[data-testid='ads']",
+    ".feedback-prompt",
+    ".js-site-improvement"
+  ]
+}
