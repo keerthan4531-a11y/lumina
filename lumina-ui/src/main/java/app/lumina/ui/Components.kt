@@ -20,10 +20,13 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -49,6 +52,14 @@ fun GlassOmnibar(
 ) {
     val interaction = remember { MutableInteractionSource() }
     val tick = rememberHapticTick()
+    val focusRequester = remember { FocusRequester() }
+
+    // open == the home page handed focus over; type immediately, no second tap
+    LaunchedEffect(open) {
+        if (open) {
+            runCatching { focusRequester.requestFocus() }
+        }
+    }
 
     GlassSurface(
         modifier = modifier.fillMaxWidth(),
@@ -97,7 +108,9 @@ fun GlassOmnibar(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Medium,
                     ),
-                    modifier = Modifier.weight(1f),
+                    modifier = Modifier
+                        .weight(1f)
+                        .focusRequester(focusRequester),
                 )
 
                 GlassChip(text = "AI", accent = true) {

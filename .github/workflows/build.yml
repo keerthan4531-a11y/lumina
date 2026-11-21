@@ -3,15 +3,31 @@ name: build
 on:
   push:
     branches: ["**"]
+    tags: ["v*"]
   workflow_dispatch:
+    inputs:
+      publish:
+        description: "Publish a GitHub Release with the APK"
+        type: boolean
+        default: true
+      tag:
+        description: "Release tag"
+        default: "lumina-demo-latest"
+      fork:
+        description: "Also build the DuckDuckGo fork APK (heavy, ~25 min)"
+        type: boolean
+        default: false
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+permissions:
+  contents: write
+
 jobs:
   # ---------------------------------------------------------------------------
-  # The fast loop: compile the glass UI and produce an installable demo APK.
+  # The fast loop: compile the glass UI and produce an installable APK.
   # Nothing but the Android SDK is needed — this is how the UI gets verified.
   # ---------------------------------------------------------------------------
   lumina-demo-apk:
@@ -34,15 +50,14 @@ jobs:
           echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
           echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
           echo "sdk.dir=$SDK" > local.properties
-          ls "$SDK/platforms" || true
           echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
 
       - name: Ensure platform 35
         run: |
-          sdkmanager --list_installed 2>/dev/null | head -20 || true
-          grep -q "platforms;android-35" <(sdkmanager --list_installed 2>/dev/null) || \
-            (yes | sdkmanager --licenses > /dev/null || true; sdkmanager "platforms;android-35" "build-tools;35.0.0")
+          (yes | sdkmanager --licenses > /dev/null) || true
+          sdkmanager --list_installed 2>/dev/null | grep -q "platforms;android-35" || \
+            sdkmanager "platforms;android-35" "build-tools;35.0.0"
           ls "$ANDROID_HOME/platforms"
 
       - name: Gradle 8.9
@@ -50,7 +65,7 @@ jobs:
         with:
           gradle-version: "8.9"
 
-      - name: Build demo APK
+      - name: Build APK
         run: gradle :lumina-demo:assembleDebug --stacktrace --no-daemon
 
       - name: Upload APK
@@ -60,13 +75,34 @@ jobs:
           path: lumina-demo/build/outputs/apk/debug/*.apk
           if-no-files-found: error
 
+      - name: Collect APK
+        run: |
+          mkdir -p out
+          cp lumina-demo/build/outputs/apk/debug/*.apk out/lumina-demo.apk
+          ls -lh out/
+
+      - name: Publish release
+        # tags always publish; manual dispatch publishes when `publish` is true
+        if: startsWith(github.ref, 'refs/tags/v') || inputs.publish == true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ inputs.tag || github.ref_name }}"
+          if [ -z "$TAG" ] || [ "$TAG" = "null" ]; then TAG="lumina-demo-latest"; fi
+          NOTES="Lumina glass UI — installable demo ($(date -u +%Y-%m-%d)).
+          Native home page, glass omnibar, glass result cards, AI answer card, tabs and sheets.
+          Debug-signed: enable 'install unknown apps' on the phone."
+          gh release create "$TAG" out/lumina-demo.apk \
+            --title "Lumina demo $TAG" \
+            --notes "$NOTES" \
+            --latest || gh release upload "$TAG" out/lumina-demo.apk --clobber
+
   # ---------------------------------------------------------------------------
-  # The real thing: fork DuckDuckGo, rebrand it, drop the glass UI in, build a
-  # browser APK. Manual only (workflow_dispatch) because it is heavy (~15-25 min)
-  # and will fail while P3/P4 wiring is still in progress — that is expected.
+  # The real thing: fork DuckDuckGo, rebrand it, build a browser APK.
+  # Manual only: heavy (~25 min) and expected to fail until P3/P4 wiring lands.
   # ---------------------------------------------------------------------------
   browser-fork-apk:
-    if: github.event_name == 'workflow_dispatch'
+    if: inputs.fork == true
     runs-on: ubuntu-latest
     timeout-minutes: 90
     continue-on-error: true
