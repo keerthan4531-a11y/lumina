@@ -36,6 +36,15 @@ fi
 cd "$FORK"
 git switch -c lumina 2>/dev/null || git switch lumina
 
+say "submodules (bloom_cpp for httpsupgrade, privacy-grade for surrogates)"
+git submodule update --init --recursive --depth 1 || {
+  echo "submodule init failed — cloning the two we need directly"
+  git clone --depth 1 https://github.com/duckduckgo/bloom_cpp.git \
+    httpsupgrade/httpsupgrade-impl/src/main/cpp/bloom_cpp || true
+  git clone --depth 1 https://github.com/duckduckgo/privacy-grade.git \
+    submodules/privacy-grade || true
+}
+
 say "npm assets (content-scope-scripts, privacy dashboard)"
 if [ "${SKIP_NPM:-0}" = "1" ]; then
   echo "skipped"

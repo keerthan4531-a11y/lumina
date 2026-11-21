@@ -169,7 +169,8 @@ jobs:
             {
               echo "### browser assemble failed (exit $code)"
               echo '```'
-              grep -E "^> Task .*FAILED|^FAILURE:|^e: |error: |Caused by:" /tmp/assemble.log | head -30
+              grep -E "^> Task .*FAILED|^FAILURE:|^e: |error: |Caused by:" /tmp/assemble.log | head -20
+              grep -A8 "CMake Error" /tmp/assemble.log | head -20
               echo '---'
               sed -n '/What went wrong/,+15p' /tmp/assemble.log | head -30
               echo '```'
