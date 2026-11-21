@@ -143,55 +143,82 @@ def strip_modules(repo: Path, dry: bool) -> None:
         print("  = telemetry/funnel modules already gone")
 
 
-DEP_RE = re.compile(r"^\s*(implementation|api|kapt|ksp|debugImplementation|testImplementation)\s*\(?\s*project\(")
+# --- module graph manipulation -------------------------------------------------
+# settings.gradle auto-discovers modules: any top-level dir with a build file becomes
+# ":dir", otherwise its child dirs become ":child" (flat names, projectDir remapped).
+IGNORED_DIRS = {
+    "buildSrc", "fastlane", "submodules", "node_modules", "gradle",
+    "build", "build-cache", ".maestro",
+}
+
+PROJECT_REF = re.compile(r"project\(\s*['\"](:[-\w.:]+)['\"]\s*\)")
+DEP_LINE = re.compile(
+    r"^\s*(implementation|api|compileOnly|runtimeOnly|kapt|ksp|debugImplementation|"
+    r"releaseImplementation|testImplementation|androidTestImplementation|internalImplementation)\b"
+)
+
+
+def has_build_file(d: Path) -> bool:
+    return (d / "build.gradle").is_file() or (d / "build.gradle.kts").is_file()
+
+
+def valid_module_paths(repo: Path) -> set[str]:
+    """Mirror settings.gradle's discovery so we know which :modules actually exist."""
+    valid: set[str] = set()
+    for parent in repo.iterdir():
+        if not parent.is_dir() or parent.name.startswith(".") or parent.name in IGNORED_DIRS:
+            continue
+        if has_build_file(parent):
+            valid.add(":" + parent.name)
+        else:
+            for child in parent.iterdir():
+                if child.is_dir() and has_build_file(child):
+                    valid.add(":" + child.name)
+    return valid
 
 
 def strip_dangling_deps(repo: Path, dry: bool) -> None:
-    """Remove build.gradle lines that reference deleted modules."""
-    names = {n for n in REMOVED_PROJECTS}
-    pat = re.compile(r"project\(\s*['\"]:" + "(" + "|".join(map(re.escape, names)) + r")" + r"['\"]\s*\)")
+    """
+    Delete dependency lines that point at modules which no longer exist.
+
+    Set-difference, not a name list: deleting `anrs/` also deletes `anrs-api` and
+    `anrs-impl` (auto-discovered as :anrs-api / :anrs-impl), and every module that
+    depended on them must lose that line or Gradle configuration fails.
+    """
+    valid = valid_module_paths(repo)
+    print(f"  · {len(valid)} modules discovered after the diet")
+
+    removed: list[str] = []
     touched = 0
-    for build in repo.rglob("build.gradle"):
-        if "node_modules" in str(build) or "app-fork" in str(build) and build.parts.count("app-fork") > 1:
+    for build in sorted(repo.rglob("build.gradle")) + sorted(repo.rglob("build.gradle.kts")):
+        parts = set(build.parts)
+        if parts & {"node_modules", "build", "buildSrc"}:
             continue
         try:
-            s = read(build)
+            lines = read(build).splitlines(keepends=True)
         except (UnicodeDecodeError, OSError):
             continue
-        out = []
-        changed = False
-        for line in s.splitlines(keepends=True):
-            if pat.search(line) and DEP_RE.match(line):
+
+        out, changed = [], False
+        for line in lines:
+            refs = PROJECT_REF.findall(line)
+            missing = [r for r in refs if r not in valid]
+            if missing and (DEP_LINE.match(line) or "project(" in line):
                 changed = True
+                removed.append(f"{short(build, repo)}: {line.strip()[:110]}")
                 continue
             out.append(line)
+
         if changed:
             touched += 1
-            write(build, "".join(out), dry, f"dropped deps on removed modules ({short(build, repo)})")
-    if not touched:
+            write(build, "".join(out), dry, f"{short(build, repo)} cleaned")
+
+    if removed:
+        print(f"  · dropped {len(removed)} dangling dependency line(s), first 40:")
+        for line in removed[:40]:
+            print(f"      - {line}")
+    else:
         print("  = no dangling module dependencies")
-
-
-def remove_gradle_block(s: str, name: str) -> str:
-    """
-    Remove a Groovy block by its name, e.g. `play { ... }` or `variantFilter { ... }`,
-    including the name token itself. Brace-matched, so nested blocks survive.
-    """
-    m = re.search(r"\n[ \t]*" + re.escape(name) + r"[ \t]*\{", s)
-    if not m:
-        return s
-    start = m.start() + 1                      # skip the leading newline
-    brace = s.index("{", start)
-    depth, i = 0, brace
-    while i < len(s):
-        if s[i] == "{":
-            depth += 1
-        elif s[i] == "}":
-            depth -= 1
-            if depth == 0:
-                return s[:start] + s[i + 1:]
-        i += 1
-    return s
 
 
 def single_flavour(repo: Path, dry: bool) -> None:
