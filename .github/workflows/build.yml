@@ -150,7 +150,7 @@ jobs:
           if [ "$code" -ne 0 ]; then
             # the run log is not reachable from every environment; an issue is
             { echo "### fork/rebrand failed (exit $code)"; echo '```'; tail -c 7000 /tmp/fork.log; echo '```'; } > /tmp/body.md
-            gh issue create --title "fork log $(date -u +%FT%TZ)" --body-file /tmp/body.md || true
+            gh issue create -R "${{ github.repository }}" --title "fork log $(date -u +%FT%TZ)" --body-file /tmp/body.md || true
             exit "$code"
           fi
 
@@ -163,8 +163,10 @@ jobs:
           ./gradlew :app:assembleInternalDebug -x lint -x test --build-cache --parallel --stacktrace --no-daemon 2>&1 | tee /tmp/assemble.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
-            { echo "### browser assemble failed (exit $code)"; echo '```'; grep -vE "^\s*$" /tmp/assemble.log | tail -c 7000; echo '```'; } > /tmp/abody.md
-            gh issue create --title "assemble log $(date -u +%FT%TZ)" --body-file /tmp/abody.md || true
+            { echo "### browser assemble failed (exit $code)"; echo '```'; grep -vE "^[[:space:]]*$" /tmp/assemble.log | tail -c 7000; echo '```'; } > /tmp/abody.md
+            # gh infers the repo from cwd — app-fork has origin=duckduckgo/Android, so be explicit
+            cd "$GITHUB_WORKSPACE"
+            gh issue create -R "${{ github.repository }}" --title "assemble log $(date -u +%FT%TZ)" --body-file /tmp/abody.md || true
             exit "$code"
           fi
 

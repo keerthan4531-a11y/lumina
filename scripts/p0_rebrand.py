@@ -128,24 +128,28 @@ def rebrand_strings(repo: Path, dry: bool) -> None:
         print("  = appName already Lumina")
 
 
-def strip_modules(repo: Path, dry: bool) -> None:
-    removed = []
-    for name in REMOVED_PROJECTS:
-        d = repo / name
-        if d.is_dir():
-            removed.append(name)
-            if dry:
-                print(f"  · would delete {name}/")
-            else:
-                shutil.rmtree(d)
-                print(f"  ✓ deleted {name}/")
-    if not removed:
-        print("  = telemetry/funnel modules already gone")
+"""Modules we would like to delete (leaf-name patterns). Nothing is deleted on a pattern
+alone: the diet is resolved against the real dependency graph first."""
+CANDIDATE_PATTERNS = [
+    r"^pixels(-|$)",
+    r"^survey(-|$)",
+    r"^anrs(-|$)",
+    r"^attributed-metrics(-|$)",
+    r"^internalfeedback(-|$)",
+    r"^app-store(-|$)",
+    r"^subscriptions?(-|$)",
+    r"^subscription-",
+    r"^sync(-|$)",
+    r"^vpn(-|$)",
+    r"^network-protection(-|$)",
+    r"^email(-|$)",
+    r"^macos(-|$)",
+    r"^windows(-|$)",
+    r"^devicemigration(-|$)",
+    r"^widget(-|$)",
+    r"^duckchat(-|$)",
+]
 
-
-# --- module graph manipulation -------------------------------------------------
-# settings.gradle auto-discovers modules: any top-level dir with a build file becomes
-# ":dir", otherwise its child dirs become ":child" (flat names, projectDir remapped).
 IGNORED_DIRS = {
     "buildSrc", "fastlane", "submodules", "node_modules", "gradle",
     "build", "build-cache", ".maestro",
@@ -162,63 +166,116 @@ def has_build_file(d: Path) -> bool:
     return (d / "build.gradle").is_file() or (d / "build.gradle.kts").is_file()
 
 
-def valid_module_paths(repo: Path) -> set[str]:
-    """Mirror settings.gradle's discovery so we know which :modules actually exist."""
-    valid: set[str] = set()
-    for parent in repo.iterdir():
+def discover_modules(repo: Path) -> dict[str, Path]:
+    """Mirror settings.gradle: top-level dir with a build file → ":dir"; else ":child" (flat)."""
+    modules: dict[str, Path] = {}
+    for parent in sorted(repo.iterdir()):
         if not parent.is_dir() or parent.name.startswith(".") or parent.name in IGNORED_DIRS:
             continue
         if has_build_file(parent):
-            valid.add(":" + parent.name)
+            modules[":" + parent.name] = parent
         else:
-            for child in parent.iterdir():
+            for child in sorted(parent.iterdir()):
                 if child.is_dir() and has_build_file(child):
-                    valid.add(":" + child.name)
-    return valid
+                    modules[":" + child.name] = child
+    return modules
 
 
-def strip_dangling_deps(repo: Path, dry: bool) -> None:
+def module_graph(repo: Path, modules: dict[str, Path]) -> dict[str, set[str]]:
+    """module → set of modules it depends on (project(':x') / project(path: ':x'))."""
+    graph: dict[str, set[str]] = {m: set() for m in modules}
+    for name, d in modules.items():
+        build = d / "build.gradle" if (d / "build.gradle").is_file() else d / "build.gradle.kts"
+        try:
+            text = read(build)
+        except (UnicodeDecodeError, OSError):
+            continue
+        graph[name] = set(PROJECT_REF.findall(text))
+    return graph
+
+
+def resolve_diet(graph: dict[str, set[str]]) -> tuple[set[str], dict[str, list[str]]]:
     """
-    Delete dependency lines that point at modules which no longer exist.
+    Fixpoint: a candidate module is deleted only when nothing that survives depends on it.
+    `:app` does not block deletion — those dependency lines are stripped afterwards.
 
-    Set-difference, not a name list: deleting `anrs/` also deletes `anrs-api` and
-    `anrs-impl` (auto-discovered as :anrs-api / :anrs-impl), and every module that
-    depended on them must lose that line or Gradle configuration fails.
+    Returns (modules to delete, modules kept *because* someone still needs them).
     """
-    valid = valid_module_paths(repo)
-    print(f"  · {len(valid)} modules discovered after the diet")
+    candidates = {
+        name for name in graph
+        if any(re.search(pat, name.lstrip(":")) for pat in CANDIDATE_PATTERNS)
+    }
+    removed: set[str] = set()
+    changed = True
+    while changed:
+        changed = False
+        for name in sorted(candidates - removed):
+            blocking = {
+                depender for depender, deps in graph.items()
+                if name in deps and depender not in removed and depender != ":app"
+            }
+            if not blocking:
+                removed.add(name)
+                changed = True
 
-    removed: list[str] = []
+    kept: dict[str, list[str]] = {}
+    for name in sorted(candidates - removed):
+        blockers = sorted({
+            depender for depender, deps in graph.items()
+            if name in deps and depender not in removed and depender != ":app"
+        })
+        kept[name] = blockers
+    return removed, kept
+
+
+def apply_diet(repo: Path, dry: bool) -> None:
+    modules = discover_modules(repo)
+    print(f"  · {len(modules)} modules discovered")
+    graph = module_graph(repo, modules)
+    removed, kept = resolve_diet(graph)
+
+    print(f"  · deleting {len(removed)} module(s) (build file removed → excluded from discovery)")
+    for name in sorted(removed):
+        build = modules[name] / "build.gradle"
+        if not build.is_file():
+            build = modules[name] / "build.gradle.kts"
+        if dry:
+            print(f"    · would remove {short(build, repo)}")
+        else:
+            build.unlink(missing_ok=True)
+            print(f"    ✓ removed {short(build, repo)}")
+
+    if kept:
+        print(f"  ! keeping {len(kept)} candidate(s) because a surviving module needs them:")
+        for name, blockers in kept.items():
+            print(f"    - {name} ← {', '.join(blockers[:4])}{' …' if len(blockers) > 4 else ''}")
+
+    # ---- strip references to what is gone (from survivors, including :app) ----
+    gone = removed
+    removed_lines = 0
     touched = 0
-    for build in sorted(repo.rglob("build.gradle")) + sorted(repo.rglob("build.gradle.kts")):
-        parts = set(build.parts)
-        if parts & {"node_modules", "build", "buildSrc"}:
+    for name, d in modules.items():
+        if name in gone:
+            continue
+        build = d / "build.gradle" if (d / "build.gradle").is_file() else d / "build.gradle.kts"
+        if not build.is_file():
             continue
         try:
             lines = read(build).splitlines(keepends=True)
         except (UnicodeDecodeError, OSError):
             continue
-
         out, changed = [], False
         for line in lines:
-            refs = PROJECT_REF.findall(line)
-            missing = [r for r in refs if r not in valid]
-            if missing and (DEP_LINE.match(line) or "project(" in line):
+            if any(ref in gone for ref in PROJECT_REF.findall(line)):
                 changed = True
-                removed.append(f"{short(build, repo)}: {line.strip()[:110]}")
+                removed_lines += 1
                 continue
             out.append(line)
-
         if changed:
             touched += 1
-            write(build, "".join(out), dry, f"{short(build, repo)} cleaned")
+            write(build, "".join(out), dry, f"{name} cleaned")
 
-    if removed:
-        print(f"  · dropped {len(removed)} dangling dependency line(s), first 40:")
-        for line in removed[:40]:
-            print(f"      - {line}")
-    else:
-        print("  = no dangling module dependencies")
+    print(f"  · removed {removed_lines} dependency line(s) across {touched} module(s)")
 
 
 def remove_gradle_block(s: str, name: str) -> str:
@@ -309,16 +366,13 @@ def main() -> int:
     print("2/6 app name")
     rebrand_strings(repo, dry)
 
-    print("3/6 telemetry + dead-weight modules")
-    strip_modules(repo, dry)
+    print("3/6 module diet (dependency-aware)")
+    apply_diet(repo, dry)
 
-    print("4/6 dangling dependencies")
-    strip_dangling_deps(repo, dry)
-
-    print("5/6 flavours")
+    print("4/6 flavours")
     single_flavour(repo, dry)
 
-    print("6/6 node asset stubs")
+    print("5/5 node asset stubs")
     node_stubs(repo, dry)
 
     print("\nnext: ./gradlew help -q   (cheap config check), then:")
