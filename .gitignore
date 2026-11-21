@@ -1,0 +1,21 @@
+# Upstream clone (see docs/01-TWO-HOUR-SPRINT.md) — never commit the full fork here
+/upstream/
+/app-fork/
+
+# Android / Gradle
+.gradle/
+build/
+*.apk
+*.aab
+local.properties
+.idea/
+captures/
+.cxx/
+
+# Node assets used by the browser fork
+node_modules/
+
+# OS / editor
+.DS_Store
+*.iml
+*.log
