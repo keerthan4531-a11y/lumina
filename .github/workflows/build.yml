@@ -157,13 +157,16 @@ jobs:
             exit "$code"
           fi
 
+      - name: Wire the glass UI into the fork (P3)
+        run: python3 scripts/p3_wire_ntp.py --repo app-fork
+
       - name: Build browser APK
         working-directory: app-fork
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set +e
-          ./gradlew :app:assembleInternalDebug -x lint -x test --build-cache --parallel --stacktrace --no-daemon 2>&1 | tee /tmp/assemble.log
+          ./gradlew :app:assembleInternalDebug -Pskip-onboarding -x lint -x test --build-cache --parallel --stacktrace --no-daemon 2>&1 | tee /tmp/assemble.log
           code=${PIPESTATUS[0]}
           if [ "$code" -ne 0 ]; then
             {
