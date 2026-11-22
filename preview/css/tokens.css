@@ -1,0 +1,85 @@
+/* ============================================================================
+   Lumina — design tokens
+   These mirror glass/LuminaTokens.kt exactly. One source of truth per platform.
+   ========================================================================== */
+
+:root {
+  /* shape */
+  --r-pill: 999px;
+  --r-card: 24px;
+  --r-sheet: 32px;
+  --r-chip: 16px;
+  --hairline: 1px;
+
+  /* glass material */
+  --blur-chip: 6px;
+  --blur-bar: 18px;
+  --blur-sheet: 26px;
+  --sat: 180%;
+  --tint-a: .10;
+  --tint-b: .04;
+  --rim-1: rgba(255,255,255,.72);
+  --rim-2: rgba(255,255,255,.06);
+  --rim-3: rgba(255,255,255,.26);
+  --spec: .55;
+
+  /* spacing 4pt grid */
+  --s1: 4px;  --s2: 8px;  --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
+
+  /* colour — dark (default) */
+  --bg-0: #06090F;
+  --bg-1: #0B1220;
+  --text-1: #F4F7FF;
+  --text-2: rgba(244,247,255,.64);
+  --text-3: rgba(244,247,255,.40);
+  --accent: #6EA8FF;
+  --accent-soft: rgba(110,168,255,.18);
+  --ai: #B48CFF;
+  --ai-soft: rgba(180,140,255,.20);
+  --ok: #58D6A8;
+  --ok-soft: rgba(88,214,168,.16);
+  --warn: #FFB86B;
+  --bad: #FF6B6B;
+
+  /* motion — springs approximated with overshoot easings */
+  --spring: cubic-bezier(.22,1.14,.30,1);
+  --spring-soft: cubic-bezier(.25,.9,.3,1);
+  --spring-scale: cubic-bezier(.2,.9,.2,1);
+  --dur-fast: 180ms;
+  --dur: 320ms;
+  --dur-slow: 480ms;
+}
+
+:root[data-theme="light"] {
+  --bg-0: #EAF0FA;
+  --bg-1: #F6F9FF;
+  --text-1: #0C1424;
+  --text-2: rgba(12,20,36,.62);
+  --text-3: rgba(12,20,36,.38);
+  --tint-a: .55;
+  --tint-b: .30;
+  --rim-1: rgba(255,255,255,.95);
+  --rim-2: rgba(255,255,255,.35);
+  --rim-3: rgba(255,255,255,.65);
+  --spec: .70;
+  --accent: #2E6BE6;
+  --accent-soft: rgba(46,107,230,.12);
+  --ai: #7A4BD6;
+  --ai-soft: rgba(122,75,214,.12);
+  --ok: #12A277;
+  --ok-soft: rgba(18,162,119,.12);
+}
+
+/* API-level fallback tiers — mirrors rememberGlassTier() in Kotlin */
+:root[data-tier="blur"]     { --sat: 140%; --tint-a: .16; --tint-b: .10; }
+:root[data-tier="tint"]     { --sat: 100%; --tint-a: .62; --tint-b: .48; }
+
+/* reduced motion */
+:root[data-motion="off"] {
+  --spring: linear(0, 1);
+  --spring-soft: linear(0, 1);
+  --spring-scale: linear(0, 1);
+  --dur-fast: 120ms;
+  --dur: 120ms;
+  --dur-slow: 120ms;
+}

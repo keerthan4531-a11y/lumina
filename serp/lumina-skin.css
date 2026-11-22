@@ -1,0 +1,193 @@
+/* ============================================================================
+   Lumina SERP skin — P5 layer A
+   Injected at document_start (WebViewCompat.addDocumentStartJavaScript) so the
+   page never paints old-style before the skin lands.
+
+   Rules of engagement:
+     · fail open  — every selector is a list; if none match, the page is untouched
+     · never hide organic results (only first-party clutter)
+     · backdrop-filter on <= 8 visible elements (sticky bar + IA card only)
+     · no web fonts, no CLS (min-heights reserved)
+   ========================================================================== */
+
+/* ---------------------------------------------------------------- base ---- */
+
+html {
+  background: transparent !important;   /* the app's glass/wallpaper shows through */
+  color-scheme: dark;
+}
+body {
+  background: transparent !important;
+  font-family: Inter, -apple-system, "Segoe UI", system-ui, sans-serif !important;
+  font-size: 15px !important;
+  line-height: 22px !important;
+  -webkit-font-smoothing: antialiased;
+  color: #F2F5FA !important;
+}
+/* light theme is driven by a data attribute the app sets, not only by the OS */
+html[data-lumina-theme="light"] body { color: #0C1424 !important; color-scheme: light; }
+
+/* page gutter: the app already provides 16dp, so tighten the web page */
+:is(#links, .results, .serp__results, [data-testid="mainline"], #main) {
+  max-width: 100% !important;
+  margin: 0 !important;
+  padding: 4px 16px 96px !important;
+}
+
+/* first-party clutter: ads rail + feedback nags + cookie banner leftovers */
+:is(#ads, .ads, .result--ad, [data-testid="ads"], .feedback-prompt, #feedback,
+   .js-site-improvement, .cookie-banner, #cookie-banner) {
+  display: none !important;
+}
+
+/* --------------------------------------------------------- sticky search -- */
+
+:is(#header, header, .header, [data-testid="header"], .search-header) {
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 20 !important;
+  margin: 0 -16px 12px !important;
+  padding: 10px 16px !important;
+  border-radius: 0 0 20px 20px !important;
+  background: linear-gradient(140deg, rgba(255,255,255,.14), rgba(255,255,255,.05)) !important;
+  -webkit-backdrop-filter: blur(18px) saturate(180%) !important;
+  backdrop-filter: blur(18px) saturate(180%) !important;
+  box-shadow: 0 12px 32px -18px rgba(0,0,0,.9), inset 0 1px 0 rgba(255,255,255,.28) !important;
+  border-bottom: 1px solid rgba(255,255,255,.10) !important;
+}
+
+/* the in-page search input, as a glass pill */
+:is(#search_form_input, input[name="q"], .search__input, [data-testid="searchbox-input"]) {
+  height: 44px !important;
+  border-radius: 999px !important;
+  padding: 0 18px !important;
+  font-size: 16px !important;
+  color: inherit !important;
+  background: rgba(255,255,255,.08) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.16) !important;
+  outline: none !important;
+}
+
+/* --------------------------------------------------------------- results -- */
+
+:is(article[data-testid="result"], .result, .web-result, li.result) {
+  display: block !important;
+  margin: 0 0 10px !important;
+  padding: 14px !important;
+  border-radius: 20px !important;
+  background: linear-gradient(140deg, rgba(255,255,255,.10), rgba(255,255,255,.035)) !important;
+  box-shadow:
+    0 18px 40px -26px rgba(0,0,0,.95),
+    inset 0 1px 0 rgba(255,255,255,.16) !important;
+  border: 1px solid rgba(255,255,255,.10) !important;
+  min-height: 96px !important;        /* reserve height → no layout shift */
+  transition: transform .18s cubic-bezier(.2,.9,.2,1), box-shadow .25s ease !important;
+}
+:is(article[data-testid="result"], .result, .web-result):hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 26px 50px -28px rgba(0,0,0,1), inset 0 1px 0 rgba(255,255,255,.22) !important;
+}
+
+/* title */
+:is([data-testid="result-title-a"], .result__a, h2.result__title a) {
+  font-size: 17px !important;
+  line-height: 23px !important;
+  font-weight: 600 !important;
+  letter-spacing: -.01em !important;
+  color: inherit !important;
+  text-decoration: none !important;
+}
+:is([data-testid="result-title-a"], .result__a):hover { color: #6EA8FF !important; }
+
+/* snippet */
+:is([data-result="snippet"], .result__snippet) {
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden !important;
+  margin-top: 6px !important;
+  font-size: 13.5px !important;
+  line-height: 20px !important;
+  opacity: .76 !important;
+}
+
+/* url as a chip, favicon inline */
+:is([data-testid="result-url"], .result__url, .result__url__domain) {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  margin-top: 8px !important;
+  padding: 3px 9px !important;
+  border-radius: 8px !important;
+  font-size: 11.5px !important;
+  font-weight: 600 !important;
+  opacity: .8 !important;
+  background: rgba(255,255,255,.08) !important;
+  text-decoration: none !important;
+}
+:is([data-testid="result-favicon"], .result__icon img, .result__favicon img) {
+  width: 16px !important; height: 16px !important;
+  border-radius: 5px !important;
+}
+
+/* ------------------------------------------------------- instant answers -- */
+
+:is([data-testid="zci"], .zci, .module--about, .zci--answer) {
+  margin: 0 0 12px !important;
+  padding: 16px !important;
+  border-radius: 24px !important;
+  background:
+    linear-gradient(150deg, rgba(180,140,255,.20), rgba(110,168,255,.06) 60%, transparent),
+    rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(180,140,255,.22) !important;
+  -webkit-backdrop-filter: blur(14px) saturate(160%) !important;
+  backdrop-filter: blur(14px) saturate(160%) !important;
+  box-shadow: 0 24px 48px -28px rgba(0,0,0,.95), inset 0 1px 0 rgba(255,255,255,.20) !important;
+}
+:is(.zci__header, .module__header) { font-size: 12px !important; letter-spacing: .04em !important; text-transform: uppercase !important; opacity: .7 !important; }
+:is(.zci__result, .module__content) { font-size: 15px !important; line-height: 23px !important; }
+
+/* ------------------------------------------------------ related searches -- */
+
+:is(.related-searches, .results--related, [data-testid="related-searches"]) {
+  margin-top: 16px !important;
+}
+:is(.related-searches a, .results--related a, [data-testid="related-searches"] a) {
+  display: inline-flex !important;
+  align-items: center !important;
+  height: 32px !important;
+  margin: 0 6px 8px 0 !important;
+  padding: 0 13px !important;
+  border-radius: 999px !important;
+  font-size: 12.5px !important;
+  text-decoration: none !important;
+  color: inherit !important;
+  background: rgba(255,255,255,.07) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.14) !important;
+}
+
+/* infinite scroll: skeleton instead of a spinner */
+.lumina-skeleton {
+  height: 96px;
+  margin: 0 0 10px;
+  border-radius: 20px;
+  background: linear-gradient(100deg, rgba(255,255,255,.06) 20%, rgba(255,255,255,.13) 40%, rgba(255,255,255,.06) 60%);
+  background-size: 220% 100%;
+  animation: lumina-shimmer 1.2s linear infinite;
+}
+@keyframes lumina-shimmer { to { background-position: -120% 0; } }
+
+/* ----------------------------------------------------------- light theme -- */
+
+html[data-lumina-theme="light"] :is(article[data-testid="result"], .result, .web-result) {
+  background: linear-gradient(140deg, rgba(255,255,255,.92), rgba(244,248,255,.86)) !important;
+  border-color: rgba(12,20,36,.06) !important;
+  box-shadow: 0 18px 40px -28px rgba(20,40,80,.55), inset 0 1px 0 #fff !important;
+}
+html[data-lumina-theme="light"] :is([data-testid="result-url"], .result__url) {
+  background: rgba(12,20,36,.05) !important;
+}
+
+/* reduced motion: the app toggles this attribute */
+html[data-lumina-motion="off"] * { animation: none !important; transition: none !important; }
