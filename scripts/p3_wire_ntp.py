@@ -29,29 +29,28 @@ MARKER = "<!-- lumina:glass-ntp -->"
 HOME_VIEW = '''package app.lumina.ntp
 
 import android.content.Context
-import android.view.View
-import android.view.inputmethod.InputMethodManager
 import android.util.AttributeSet
+import android.view.View
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import android.widget.FrameLayout
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.compose.ui.unit.dp
-import app.lumina.ui.LuminaFavourite
 import app.lumina.ui.LuminaNtp
-import app.lumina.ui.LuminaRecentPage
-import app.lumina.ui.LuminaTokens
-import app.lumina.ui.LuminaWallpaper
 
 /**
- * Lumina's glass home page, hosted inside the DuckDuckGo tab layout.
+ * Lumina's start page, hosted inside the DuckDuckGo tab layout.
  *
- * It is a plain FrameLayout so the existing XML can embed it; the old NTP stays underneath
- * (harmless, it is never seen) and all of the app's NTP show/hide logic keeps working.
+ * A plain FrameLayout so the existing XML can embed it: the app's own NTP show/hide logic
+ * (`newTabLayout.show()/gone()`) keeps working, and the real omnibar above is never replaced.
+ * [topInset] is measured from the live omnibar so the glass page starts exactly under it instead
+ * of guessing a padding that breaks on different densities / browser bar states.
  */
 class LuminaHomeView @JvmOverloads constructor(
     context: Context,
@@ -59,45 +58,75 @@ class LuminaHomeView @JvmOverloads constructor(
     defStyleAttr: Int = 0,
 ) : FrameLayout(context, attrs, defStyleAttr) {
 
+    private val topInsetDp = mutableStateOf(0)
+
     private val compose = ComposeView(context).apply {
         layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
     }
 
     init {
-        setBackgroundColor(0xFF06090F.toInt())
+        setBackgroundColor(0)
         addView(compose)
         compose.setContent {
-            Box(Modifier.fillMaxSize()) {
-                LuminaWallpaper(Modifier.fillMaxSize())
-                LuminaNtp(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
-                        .padding(top = 8.dp, bottom = 96.dp),
-                    greeting = "Lumina",
-                    subtitle = "Private by default · on-device AI",
-                    blockedToday = 0,
-                    favourites = demoFavourites,
-                    recent = emptyList(),
-                    onSearchTap = { focusOmnibar() },
-                    onAi = { focusOmnibar() },
-                    onShields = { focusOmnibar() },
-                    onOpen = { /* P3.1: load in the current tab */ },
-                )
-            }
+            LuminaNtp(
+                modifier = Modifier.fillMaxSize(),
+                topInset = topInsetDp.value.dp,
+                dark = isSystemInDarkTheme(),
+                onSearchTap = { focusOmnibar() },
+                onAi = { focusOmnibar() },
+                onShields = { focusOmnibar() },
+                onOpen = { url -> openUrl(url) },
+            )
         }
+    }
+
+    override fun onLayout(changed: Boolean, l: Int, t: Int, r: Int, b: Int) {
+        super.onLayout(changed, l, t, r, b)
+        measureOmnibar()
+    }
+
+    /** Start the page below the browser's own address bar. */
+    private fun measureOmnibar() {
+        val omnibar = omnibarView() ?: return
+        val om = IntArray(2)
+        val me = IntArray(2)
+        omnibar.getLocationOnScreen(om)
+        getLocationOnScreen(me)
+        val density = resources.displayMetrics.density
+        val bottomPx = om[1] + omnibar.height - me[1]
+        val dp = if (bottomPx <= 0) 0 else ((bottomPx + 14 * density) / density).toInt()
+        if (dp != topInsetDp.value) topInsetDp.value = dp
+    }
+
+    private fun omnibarView(): View? {
+        val activity = context.findActivity() ?: return null
+        val id = resources.getIdentifier("omnibarTextInput", "id", activity.packageName)
+        if (id == 0) return null
+        return activity.findViewById(id)
     }
 
     /** Hand the tap over to the browser's real address bar. */
     private fun focusOmnibar() {
-        val activity = context.findActivity() ?: return
-        val id = resources.getIdentifier("omnibarTextInput", "id", activity.packageName)
-        if (id == 0) return
-        val input: View = activity.findViewById(id) ?: return
+        val input = omnibarView() ?: return
         input.requestFocus()
         val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
         imm?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+    }
+
+    /**
+     * A shortcut was tapped. The omnibar is the only supported entry point from a hosted view, so
+     * type the URL into it and submit — the existing tab machinery takes it from there.
+     */
+    private fun openUrl(url: String) {
+        val input = omnibarView()
+        if (input is EditText) {
+            input.setText(url)
+            input.setSelection(input.text.length)
+            input.onEditorAction(EditorInfo.IME_ACTION_GO)
+            return
+        }
+        focusOmnibar()
     }
 
     private fun Context.findActivity(): android.app.Activity? {
@@ -107,15 +136,6 @@ class LuminaHomeView @JvmOverloads constructor(
             ctx = ctx.baseContext
         }
         return null
-    }
-
-    private companion object {
-        val demoFavourites = listOf(
-            LuminaFavourite("Search", "https://duckduckgo.com"),
-            LuminaFavourite("Docs", "https://developer.android.com"),
-            LuminaFavourite("GitHub", "https://github.com"),
-            LuminaFavourite("News", "https://news.ycombinator.com"),
-        )
     }
 }
 '''
@@ -234,10 +254,10 @@ def add_dependency(repo: Path, dry: bool) -> None:
 
 def write_home_view(repo: Path, dry: bool) -> None:
     dst = repo / "app" / "src" / "main" / "java" / "app" / "lumina" / "ntp" / "LuminaHomeView.kt"
-    if dst.is_file() and "class LuminaHomeView" in read(dst):
-        print("  = LuminaHomeView already written")
+    if dst.is_file() and read(dst) == HOME_VIEW:
+        print("  = LuminaHomeView.kt up to date")
         return
-    write(dst, HOME_VIEW, dry, "LuminaHomeView.kt (glass NTP host)")
+    write(dst, HOME_VIEW, dry, "LuminaHomeView.kt (start page host)")
 
 
 def patch_ntp_layout(repo: Path, dry: bool) -> None:

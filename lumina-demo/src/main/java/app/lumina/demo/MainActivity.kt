@@ -128,8 +128,6 @@ private fun LuminaDemoApp() {
                     Box(Modifier.weight(1f)) {
                         LuminaNtp(
                             modifier = Modifier.padding(top = LuminaTokens.s5),
-                            greeting = "Good evening",
-                            subtitle = "Keerthan · your data stays here",
                             blockedToday = 1204,
                             favourites = listOf(
                                 LuminaFavourite("GitHub", "https://github.com"),

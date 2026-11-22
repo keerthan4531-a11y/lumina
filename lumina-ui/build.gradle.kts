@@ -32,6 +32,9 @@ dependencies {
     api("androidx.compose.ui:ui")
     api("androidx.compose.foundation:foundation")
     api("androidx.compose.material3:material3")
+    // Glass. Real backdrop blur (AGSL on 33+, RenderEffect on 31-32, own fallback below):
+    // skydoves/Cloudy — the library the user pointed at. No hand-painted "fake glass".
+    api("com.github.skydoves:cloudy:1.0.0-alpha01")
     implementation("androidx.core:core-ktx:1.13.1")
     implementation("androidx.activity:activity-compose:1.9.3")
 }

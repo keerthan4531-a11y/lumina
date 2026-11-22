@@ -3,8 +3,9 @@
 A liquid-glass, lightweight, fast, privacy-first Android browser with native AI features,
 built on top of the (Apache-2.0) DuckDuckGo Android codebase.
 
-> **Status:** the glass UI **builds and installs** — [download the demo APK](https://github.com/keerthan4531-a11y/lumina/releases/latest)
-> (19.4 MB). CI builds every push. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
+> **Status:** the glass **start page is inside the real browser** —
+> [download the browser APK](https://github.com/keerthan4531-a11y/lumina/releases/tag/fork-0.2.0-browser).
+> CI builds every `fork-*` tag. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 [![build](https://github.com/keerthan4531-a11y/lumina/actions/workflows/build.yml/badge.svg)](https://github.com/keerthan4531-a11y/lumina/actions/workflows/build.yml)
 
@@ -43,20 +44,29 @@ result cards over a skinned SERP — instead of trying to rewrite a browser in a
 | [`scripts/`](scripts/) | P0 fork + rebrand + telemetry strip (`p0-fork.sh`, `p0_rebrand.py`) — tested against upstream |
 | [`serp/`](serp/) | SERP skin: `lumina-skin.css` / `.js`, `selectors.json`, `LuminaSerpSkin.kt` (document-start injection) |
 | [`lumina-ui/`](lumina-ui/) | **The real Compose module** — glass surface, omnibar, result/answer cards, bottom bar, sheet, NTP, motion |
-| [`lumina-demo/`](lumina-demo/) | Installable demo app that wires the UI into screens (this is what CI builds) |
+| [`lumina-demo/`](lumina-demo/) | **Retired** standalone demo project (AGP 8 / Kotlin 2.0). The glass module is now compiled once, inside the fork |
 | [`glass/`](glass/) | Reference Compose glass code (tokens, GlassOmnibar, GlassNtp, motion) to drop into `lumina-ui` |
 
 ## Upstream sources
 
 - Browser base: https://github.com/duckduckgo/Android (Apache-2.0)
-- Glass engine: https://github.com/Kyant0/AndroidLiquidGlass (`backdrop`, Apache-2.0),
-  published as `io.github.kyant0:backdrop` on Maven Central, or vendored as a module.
+- Glass engine (in use): https://github.com/skydoves/Cloudy (`com.github.skydoves:cloudy`,
+  Apache-2.0) — `Modifier.sky` + `Modifier.cloudy` backdrop blur, AGSL on 33+ / RenderEffect
+  on 31-32 / graceful fallback below.
+- Glass engine (reference): https://github.com/Kyant0/AndroidLiquidGlass (`io.github.kyant0:backdrop`,
+  Apache-2.0) — its `backdrop` artifact is built against compileSdk 37, so it is not linked yet;
+  Cloudy ships an equivalent lens/refraction shader (`Modifier.liquidGlass`).
 
 ## Quick start
 
+The only build target is the browser fork — the same one CI runs:
+
 ```bash
-# build the installable demo APK (needs JDK 17 + Android SDK 35)
-gradle :lumina-demo:assembleRelease        # → lumina-demo/build/outputs/apk/release/
+# needs JDK 21 + Android SDK 36 (see .github/workflows/build.yml for the exact steps)
+./scripts/p0-fork.sh                       # clone + rebrand duckduckgo/Android → app-fork/
+python3 scripts/p3_wire_ntp.py --repo app-fork --dry-run
+python3 scripts/p3_wire_ntp.py --repo app-fork
+cd app-fork && ./gradlew :app:assembleInternalDebug -Pskip-onboarding -x lint -x test
 ```
 
 ```bash

@@ -17,5 +17,9 @@ dependencyResolutionManagement {
 
 rootProject.name = "lumina"
 
-include(":lumina-ui")
-include(":lumina-demo")
+// The standalone demo project is retired (see docs/PROGRESS.md): it pinned AGP 8 / Kotlin 2.0,
+// while the glass stack (skydoves/Cloudy 1.0.0-alpha01) and the browser fork both need
+// Kotlin 2.4 metadata. `lumina-ui/` is now compiled exactly once — inside the fork, by
+// scripts/p3_wire_ntp.py — so there is a single toolchain and a single APK to trust.
+// include(":lumina-ui")
+// include(":lumina-demo")

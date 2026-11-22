@@ -6,8 +6,11 @@ Last updated: 2026-11-21 · branch `arena/60272fff-lumina`
 
 | APK | What it is | Link |
 |---|---|---|
-| **Lumina demo** (8.1 MB, R8) | the glass UI running on a device — home, omnibar, results, tabs, sheets | [releases/latest](https://github.com/keerthan4531-a11y/lumina/releases/latest) |
-| **Lumina browser (P3)** (179 MB, debug) | **the real thing**: duckduckgo/Android forked → `app.lumina.browser` **with the glass home page wired in** | [`fork-0.1.7-browser`](https://github.com/keerthan4531-a11y/lumina/releases/tag/fork-0.1.7-browser) |
+| **Lumina browser (P3.2)** (debug) | duckduckgo/Android forked → `app.lumina.browser`, with the **Lumina start page** (Cloudy glass) wired in | [`fork-0.2.0-browser`](https://github.com/keerthan4531-a11y/lumina/releases/tag/fork-0.2.0-browser) |
+
+> The 8 MB standalone demo was retired: it pinned AGP 8 / Kotlin 2.0, and the glass stack needs
+> Kotlin 2.4 metadata. `lumina-ui/` is now compiled exactly once — inside the fork — so there is a
+> single toolchain and a single APK to trust.
 
 Every push builds both in GitHub Actions (`.github/workflows/build.yml`), so the UI and the fork are
 *verified by a compiler*, not by hope. Android Studio not required.
@@ -28,6 +31,7 @@ Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
 | **P0** Fork + rebrand (build green) | ✅ | `scripts/p0-fork.sh`, `scripts/p0_rebrand.py` (tested on a real upstream checkout — appId, rootProject, appName, flavours, dangling deps, node stubs all verified) | **`assembleInternalDebug` passes in CI** → rebranded browser APK published. Telemetry module deletion is deferred to P1 (`--diet` flag, opt-in) because `:app` resources and feature modules reference them |
 | **P1** Slim modules + CI + baseline | 🟡 | module delete-list + dangling-dep rewriter inside the P0 script | GitHub Actions workflow, `docs/baseline.md` from macrobenchmark |
 | **P2** `lumina-ui` glass system | ✅ | `glass/` reference module (tokens, Motion, GlassSurface/Omnibar/Pill, HybridBackdrop) **+ `preview/` pixel-accurate prototype** that defines the design | Kotlin port of ResultCard / AnswerCard / BottomBar / Sheet + gallery |
+| **P3.2** Start page redesign | 🟡 | `LuminaNtp` rewritten as a real browser start page (wordmark · one search pill · 8 shortcuts · privacy line), glass via **skydoves/Cloudy** `Modifier.sky` + `Modifier.cloudy`, live omnibar-inset measurement in `LuminaHomeView` | device feedback |
 | **P3** Native glass NTP | ✅ | `lumina-ui/` (real Compose module: tokens, motion, `GlassSurface`, `LuminaIcons`, `LuminaNtp`) + `scripts/p3_wire_ntp.py` → `LuminaHomeView` overlaid as the last child of `include_new_browser_tab.xml`, so DDG's own NTP show/hide logic and the omnibar stay untouched | polish after device feedback (icon motion on the NTP cards, real wallpapers, light-mode palette) |
 | **P4** Glass chrome + icon motion | ✅ | motion spec + prototype's omnibar / bottom bar / tabs grid | Kotlin omnibar, tab deck, nav bar with moving highlight |
 | **P5** SERP v2 | 🟡 | `serp/lumina-skin.css`, `serp/lumina-skin.js`, `serp/selectors.json`, `serp/LuminaSerpSkin.kt` (layer A complete, fail-open selector map) | layer B `SerpProvider` + native cards, layer C AI answer |
