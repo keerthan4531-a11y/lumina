@@ -4,7 +4,7 @@ A liquid-glass, lightweight, fast, privacy-first Android browser with native AI 
 built on top of the (Apache-2.0) DuckDuckGo Android codebase.
 
 > **Status:** the glass **start page is inside the real browser** —
-> [download the browser APK](https://github.com/keerthan4531-a11y/lumina/releases/tag/fork-0.2.0-browser).
+> [download the browser APK](https://github.com/keerthan4531-a11y/lumina/releases/tag/fork-0.2.2-browser).
 > CI builds every `fork-*` tag. See [`docs/PROGRESS.md`](docs/PROGRESS.md).
 
 [![build](https://github.com/keerthan4531-a11y/lumina/actions/workflows/build.yml/badge.svg)](https://github.com/keerthan4531-a11y/lumina/actions/workflows/build.yml)
