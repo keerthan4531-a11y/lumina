@@ -229,12 +229,46 @@ def copy_ui(repo: Path, src: Path, dry: bool) -> None:
     s = read(build)
     # fork is compileSdk 36 / minSdk 28 and owns the Compose BOM version
     s = re.sub(r'compose-bom:[0-9.]+', f"compose-bom:{compose_version(repo)}", s)
-    s = re.sub(r"compileSdk = \d+", "compileSdk = 36", s)
+    s = re.sub(r"compileSdk = \d+", "compileSdk = 37", s)
     # AGP 9 ships built-in Kotlin support: applying the Kotlin plugin is a hard error there
     s = re.sub(r'^\s*id\("org\.jetbrains\.kotlin\.android"\)\s*\n', "", s, flags=re.M)
     # ...and `kotlinOptions` no longer exists on the android extension
     s = re.sub(r"\n\s*kotlinOptions\s*\{[^}]*\}\n", "\n", s)
     write(build, s, dry, "lumina-ui/build.gradle.kts adapted to the fork (AGP 9, BOM, SDK 36)")
+
+
+def bump_compile_sdk(repo: Path, dry: bool) -> None:
+    """
+    skydoves/Cloudy pulls the current androidx stack (core 1.19, compose 1.11, activity 1.13);
+    those AARs declare minCompileSdk 37, so the app is compiled against android-37 while the
+    targetSdk stays 36 (a compileSdk bump does not change runtime behaviour).
+    """
+    build = repo / "build.gradle"
+    if not build.is_file():
+        print("  ! no root build.gradle, skipping")
+        return
+    s = read(build)
+    if "compile_sdk = 37" in s:
+        print("  = compile_sdk already 37")
+        return
+    new = re.sub(r"compile_sdk = \d+", "compile_sdk = 37", s, count=1)
+    if new == s:
+        print("  ! could not find compile_sdk in build.gradle")
+        return
+    write(build, new, dry, "root build.gradle: compile_sdk 36 -> 37 (Cloudy's androidx stack)")
+
+    # AGP only warns for a compileSdk newer than the one it was tested with; keep the log clean.
+    props = repo / "gradle.properties"
+    if props.is_file():
+        ps = read(props)
+        if "suppressUnsupportedCompileSdk" not in ps:
+            write(
+                props,
+                ps.rstrip("\n") + "\n# Lumina P3: android-37 is required by the glass stack\n"
+                "android.suppressUnsupportedCompileSdk=37\n",
+                dry,
+                "gradle.properties: suppressUnsupportedCompileSdk=37",
+            )
 
 
 def add_dependency(repo: Path, dry: bool) -> None:
@@ -303,20 +337,23 @@ def main() -> int:
     dry = args.dry_run
     print(f"Lumina P3 wiring — {repo}{' (dry run)' if dry else ''}\n")
 
-    print("1/5 glass UI module")
+    print("1/6 glass UI module")
     copy_ui(repo, src, dry)
 
-    print("2/5 app dependency")
+    print("2/6 app dependency")
     add_dependency(repo, dry)
 
-    print("3/5 NTP host view")
+    print("3/6 NTP host view")
     write_home_view(repo, dry)
 
-    print("4/5 NTP layout overlay")
+    print("4/6 NTP layout overlay")
     patch_ntp_layout(repo, dry)
 
-    print("5/5 launcher icon")
+    print("5/6 launcher icon")
     install_icon(repo, dry)
+
+    print("6/6 compileSdk 37")
+    bump_compile_sdk(repo, dry)
 
     print("\nnext: ./gradlew :app:assembleInternalDebug -Pskip-onboarding")
     return 0

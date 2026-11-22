@@ -56,11 +56,13 @@ jobs:
           echo "$SDK/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
           echo "$SDK/platform-tools" >> "$GITHUB_PATH"
 
-      - name: Install platform 36
+      - name: Install platform 37
         run: |
           (yes | sdkmanager --licenses > /dev/null) || true
-          sdkmanager "platforms;android-36" "build-tools;36.0.0" || \
-            sdkmanager "platforms;android-35" "build-tools;35.0.0"
+          # android-37: the glass stack (skydoves/Cloudy) pulls androidx AARs that declare
+          # minCompileSdk 37. Fall back to 36 only if the platform is not published yet.
+          sdkmanager "platforms;android-37" "build-tools;36.0.0" || \
+            sdkmanager "platforms;android-36" "build-tools;36.0.0"
           # httpsupgrade-impl builds C++ with CMake + NDK 30 (pinned by upstream)
           sdkmanager "ndk;30.0.16248370" "cmake;3.22.1" || true
           ls "$ANDROID_HOME/platforms"
