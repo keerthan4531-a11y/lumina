@@ -271,6 +271,27 @@ def bump_compile_sdk(repo: Path, dry: bool) -> None:
             )
 
 
+def patch_platform37_nullability(repo: Path, dry: bool) -> None:
+    """
+    android-37 annotates `ActivityManager.AppTask.taskInfo` as nullable, which upstream DDG
+    (written against 36) dereferences directly. Two call sites in the whole tree; make them
+    safe calls. Nothing else changes.
+    """
+    targets = list((repo / "app" / "src").rglob("*.kt"))
+    hits = 0
+    for path in targets:
+        src = read(path)
+        if ".taskInfo." not in src:
+            continue
+        patched = src.replace(".taskInfo.baseIntent.", ".taskInfo?.baseIntent?.")
+        patched = patched.replace(".taskInfo.", ".taskInfo?.")
+        if patched != src:
+            hits += 1
+            write(path, patched, dry, f"{path.name}: taskInfo -> taskInfo? (android-37)")
+    if hits == 0:
+        print("  = no taskInfo dereferences to fix")
+
+
 def add_dependency(repo: Path, dry: bool) -> None:
     app = repo / "app" / "build.gradle"
     s = read(app)
@@ -337,23 +358,26 @@ def main() -> int:
     dry = args.dry_run
     print(f"Lumina P3 wiring — {repo}{' (dry run)' if dry else ''}\n")
 
-    print("1/6 glass UI module")
+    print("1/7 glass UI module")
     copy_ui(repo, src, dry)
 
-    print("2/6 app dependency")
+    print("2/7 app dependency")
     add_dependency(repo, dry)
 
-    print("3/6 NTP host view")
+    print("3/7 NTP host view")
     write_home_view(repo, dry)
 
-    print("4/6 NTP layout overlay")
+    print("4/7 NTP layout overlay")
     patch_ntp_layout(repo, dry)
 
-    print("5/6 launcher icon")
+    print("5/7 launcher icon")
     install_icon(repo, dry)
 
-    print("6/6 compileSdk 37")
+    print("6/7 compileSdk 37")
     bump_compile_sdk(repo, dry)
+
+    print("7/7 android-37 nullability")
+    patch_platform37_nullability(repo, dry)
 
     print("\nnext: ./gradlew :app:assembleInternalDebug -Pskip-onboarding")
     return 0
