@@ -207,10 +207,14 @@ def copy_ui(repo: Path, src: Path, dry: bool) -> None:
     if not build.is_file():
         return
     s = read(build)
-    # the fork is compileSdk 36 / minSdk 28 and owns the Compose BOM version
+    # fork is compileSdk 36 / minSdk 28 and owns the Compose BOM version
     s = re.sub(r'compose-bom:[0-9.]+', f"compose-bom:{compose_version(repo)}", s)
     s = re.sub(r"compileSdk = \d+", "compileSdk = 36", s)
-    write(build, s, dry, "lumina-ui/build.gradle.kts pinned to the fork's Compose BOM")
+    # AGP 9 ships built-in Kotlin support: applying the Kotlin plugin is a hard error there
+    s = re.sub(r'^\s*id\("org\.jetbrains\.kotlin\.android"\)\s*\n', "", s, flags=re.M)
+    # ...and `kotlinOptions` no longer exists on the android extension
+    s = re.sub(r"\n\s*kotlinOptions\s*\{[^}]*\}\n", "\n", s)
+    write(build, s, dry, "lumina-ui/build.gradle.kts adapted to the fork (AGP 9, BOM, SDK 36)")
 
 
 def add_dependency(repo: Path, dry: bool) -> None:
