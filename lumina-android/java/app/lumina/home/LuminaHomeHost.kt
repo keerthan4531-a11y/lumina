@@ -337,7 +337,7 @@ class LuminaHomeHost @JvmOverloads constructor(
         val bar = View(context)
         bar.background = android.graphics.drawable.GradientDrawable().apply {
             setColor(0x14FFFFFF)
-            cornerRadius = dp(heightDp / 2f)
+            cornerRadius = dp(heightDp / 2f).toFloat()
         }
         bar.layoutParams = LinearLayout.LayoutParams(0, dp(heightDp.toFloat())).apply {
             weight = widthFraction
