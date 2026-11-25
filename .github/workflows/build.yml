@@ -98,6 +98,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          echo "cpu=$(nproc) mem=$(free -g | awk '/Mem:/{print $2}')G"
           set +e
           ./gradlew :app:assembleInternalDebug -Pskip-onboarding -x lint -x test --build-cache --parallel --stacktrace --no-daemon 2>&1 | tee /tmp/assemble.log
           code=${PIPESTATUS[0]}
@@ -109,6 +110,11 @@ jobs:
               grep -A8 "CMake Error" /tmp/assemble.log | head -20
               echo '---'
               sed -n '/What went wrong/,+15p' /tmp/assemble.log | head -30
+              echo '```'
+              echo
+              echo '### tail'
+              echo '```'
+              tail -c 4000 /tmp/assemble.log
               echo '```'
             } > /tmp/abody.md
             # gh infers the repo from cwd — app-fork has origin=duckduckgo/Android, so be explicit
