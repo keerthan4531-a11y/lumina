@@ -66,10 +66,18 @@ object LuminaDimens {
  */
 object LuminaWallpaper {
 
-    private const val SAMPLE_DIVISOR = 14f
     private var sample: Bitmap? = null
     private var sampleWidth = 0
     private var sampleHeight = 0
+    private var sampleDivisor = 0f
+
+    /** Called when the frost strength changes, so the next draw rebuilds the sample. */
+    @Synchronized
+    fun invalidate() {
+        sample = null
+        sampleWidth = 0
+        sampleHeight = 0
+    }
 
     /** A soft aurora: three warm/cool pools over near-black. Painted straight onto a canvas. */
     fun paint(canvas: Canvas, width: Int, height: Int) {
@@ -112,11 +120,14 @@ object LuminaWallpaper {
     /** Downscaled wallpaper, built once per size. Cheap enough to sample on every panel draw. */
     @Synchronized
     fun sample(context: Context, widthPx: Int, heightPx: Int): Bitmap {
+        val divisor = LuminaGlassSettings.blurDivisor.coerceIn(4f, 40f)
         val cached = sample
-        if (cached != null && sampleWidth == widthPx && sampleHeight == heightPx) return cached
+        if (cached != null && sampleWidth == widthPx && sampleHeight == heightPx && sampleDivisor == divisor) {
+            return cached
+        }
 
-        val w = max(8, (widthPx / SAMPLE_DIVISOR).toInt())
-        val h = max(8, (heightPx / SAMPLE_DIVISOR).toInt())
+        val w = max(8, (widthPx / divisor).toInt())
+        val h = max(8, (heightPx / divisor).toInt())
         val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.scale(w / widthPx.toFloat(), h / heightPx.toFloat())
@@ -125,6 +136,7 @@ object LuminaWallpaper {
         sample = bitmap
         sampleWidth = widthPx
         sampleHeight = heightPx
+        sampleDivisor = divisor
         return bitmap
     }
 }

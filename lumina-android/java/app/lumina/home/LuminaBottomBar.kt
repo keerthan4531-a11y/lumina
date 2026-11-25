@@ -77,14 +77,14 @@ class LuminaBottomBar @JvmOverloads constructor(
         icons.clear()
         if (items.isEmpty()) return
 
-        panel.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        panel.layoutParams = android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         addView(panel)
 
-        glow.layoutParams = LayoutParams(itemWidth(), LayoutParams.MATCH_PARENT)
+        glow.layoutParams = android.widget.FrameLayout.LayoutParams(itemWidth(), LayoutParams.MATCH_PARENT)
         addView(glow)
 
         val row = FrameLayout(context)
-        row.layoutParams = LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
+        row.layoutParams = android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         addView(row)
 
         items.forEachIndexed { index, item ->
@@ -92,7 +92,7 @@ class LuminaBottomBar @JvmOverloads constructor(
                 setImageResource(item.iconRes)
                 contentDescription = item.label
                 setColorFilter(LuminaDimens.TEXT_3)
-                val lp = LayoutParams(itemWidth(), LayoutParams.MATCH_PARENT)
+                val lp = android.widget.FrameLayout.LayoutParams(itemWidth(), LayoutParams.MATCH_PARENT)
                 lp.leftMargin = (itemWidth() * index).toInt()
                 layoutParams = lp
                 scaleType = ImageView.ScaleType.CENTER
@@ -183,9 +183,9 @@ class LuminaIconButton @JvmOverloads constructor(
     }
 
     init {
-        addView(panel, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(panel, android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         val size = (20 * resources.displayMetrics.density).toInt()
-        val iconParams = LayoutParams(size, size).apply { gravity = Gravity.CENTER }
+        val iconParams = android.widget.FrameLayout.LayoutParams(size, size).apply { gravity = Gravity.CENTER }
         addView(icon, iconParams)
         isClickable = true
         isFocusable = true

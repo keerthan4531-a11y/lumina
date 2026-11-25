@@ -14,7 +14,15 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import app.lumina.glass.GlassPanelView
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import app.lumina.glass.LuminaDimens
+import app.lumina.glass.LuminaGlassSettings
+import app.lumina.glass.LuminaWallpaper
+import app.lumina.sheet.LuminaAiSheet
+import app.lumina.sheet.LuminaPrivacySheet
+import app.lumina.sheet.LuminaSettingsSheet
+import app.lumina.tabs.LuminaTabsDeck
 import app.lumina.glass.LuminaWallpaperView
 import app.lumina.glass.monogramColor
 import com.duckduckgo.app.browser.R
@@ -52,13 +60,18 @@ class LuminaHomeHost @JvmOverloads constructor(
     private var topic = LuminaNewsRepository.topics.first()
     private var loading = false
     private var appliedInset = -1
+    private var currentSheet: app.lumina.sheet.LuminaSheet? = null
+    private var tabsDeck: LuminaTabsDeck? = null
+    private var knownTabs: List<LuminaTabsDeck.Tab> = emptyList()
 
     init {
         setWillNotDraw(false)
         clipChildren = false
+        LuminaGlassSettings.ensureLoaded(context)
         buildWallpaper()
         buildScroll()
         buildBottomBar()
+        bottomBar.visibility = if (LuminaGlassSettings.showBottomBar) View.VISIBLE else View.GONE
         selectTopic(topic, force = false)
     }
 
@@ -67,7 +80,7 @@ class LuminaHomeHost @JvmOverloads constructor(
     /* --------------------------------------------------------------------------------------- */
 
     private fun buildWallpaper() {
-        addView(wallpaper, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(wallpaper, android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     private fun buildScroll() {
@@ -77,7 +90,7 @@ class LuminaHomeHost @JvmOverloads constructor(
         content.orientation = LinearLayout.VERTICAL
         content.setPadding(dp(18), 0, dp(18), dp(120))
         scroll.addView(content, ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        addView(scroll, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        addView(scroll, android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
 
         content.addView(buildHeader())
         content.addView(buildChips(), marginParams(top = 14))
@@ -106,13 +119,22 @@ class LuminaHomeHost @JvmOverloads constructor(
         }
         row.addView(search, LinearLayout.LayoutParams(dp(44), dp(44)))
 
+        val privacy = LuminaIconButton(context).apply {
+            setIcon(R.drawable.lumina_ic_shield)
+            setOnClickListener { animatePress(this); openPrivacy() }
+        }
+        row.addView(
+            privacy,
+            LinearLayout.LayoutParams(dp(44), dp(44)).apply { leftMargin = dp(6) },
+        )
+
         val settings = LuminaIconButton(context).apply {
             setIcon(R.drawable.lumina_ic_menu)
-            setOnClickListener { animatePress(this); onSettings?.invoke() }
+            setOnClickListener { animatePress(this); openSettings() }
         }
         row.addView(
             settings,
-            LinearLayout.LayoutParams(dp(44), dp(44)).apply { leftMargin = dp(8) },
+            LinearLayout.LayoutParams(dp(44), dp(44)).apply { leftMargin = dp(6) },
         )
         return row
     }
@@ -138,7 +160,7 @@ class LuminaHomeHost @JvmOverloads constructor(
                 radius = LuminaDimens.px(context, LuminaDimens.RADIUS_PILL)
                 tint = 0x14FFFFFF
                 blurStrength = LuminaDimens.BLUR_CARD
-                addView(chip, LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
+                addView(chip, android.widget.FrameLayout.LayoutParams(LayoutParams.WRAP_CONTENT, LayoutParams.WRAP_CONTENT))
             }
             holder.setOnClickListener { selectTopic(candidate, force = false) }
             chips.addView(
@@ -187,11 +209,11 @@ class LuminaHomeHost @JvmOverloads constructor(
             when (index) {
                 LuminaBottomBar.TAB_HOME -> scroll.smoothScrollTo(0, 0)
                 LuminaBottomBar.TAB_SEARCH -> onSearchTap?.invoke()
-                LuminaBottomBar.TAB_TABS -> onTab?.invoke(LuminaBottomBar.TAB_TABS)
-                else -> onTab?.invoke(index)
+                LuminaBottomBar.TAB_TABS -> showTabs()
+                else -> openAi()
             }
         }
-        val params = LayoutParams(LayoutParams.MATCH_PARENT, dp(64)).apply {
+        val params = android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, dp(64)).apply {
             gravity = Gravity.BOTTOM
             leftMargin = dp(20)
             rightMargin = dp(20)
@@ -271,8 +293,8 @@ class LuminaHomeHost @JvmOverloads constructor(
             typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
             gravity = Gravity.CENTER
         }
-        tile.addView(favicon, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        tile.addView(monogram, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        tile.addView(favicon, android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+        tile.addView(monogram, android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         row.addView(tile, LinearLayout.LayoutParams(dp(42), dp(42)).apply { rightMargin = dp(12) })
 
         LuminaFavicons.load(item.domain) { bitmap ->
@@ -381,6 +403,91 @@ class LuminaHomeHost @JvmOverloads constructor(
         column.addView(retry)
         card.addView(column)
         feed.addView(card)
+    }
+
+    /* --------------------------------------------------------------------------------------- */
+    /* Sheets                                                                                  */
+    /* --------------------------------------------------------------------------------------- */
+
+    private fun openAi() {
+        val sheet = LuminaAiSheet.create(
+            context,
+            onAsk = { prompt -> submitToOmnibar(prompt) },
+            onClose = { currentSheet = null },
+        )
+        currentSheet = sheet
+        sheet.show(this)
+    }
+
+    private fun openPrivacy() {
+        val sheet = LuminaPrivacySheet.create(
+            context,
+            onOpenBrowserSettings = { submitToOmnibar("duckduckgo://settings") },
+            onClose = { currentSheet = null },
+        )
+        currentSheet = sheet
+        sheet.show(this)
+    }
+
+    private fun openSettings() {
+        val sheet = LuminaSettingsSheet.create(
+            context,
+            onChanged = { applySettings() },
+            onOpenBrowserSettings = { submitToOmnibar("duckduckgo://settings") },
+            onAbout = { submitToOmnibar("https://duckduckgo.com/about") },
+            onClose = { currentSheet = null },
+        )
+        currentSheet = sheet
+        sheet.show(this)
+    }
+
+    /** Settings that change what is already on screen take effect immediately. */
+    private fun applySettings() {
+        bottomBar.visibility = if (LuminaGlassSettings.showBottomBar) View.VISIBLE else View.GONE
+        LuminaWallpaper.invalidate()
+        wallpaper.invalidate()
+        content.invalidate()
+        feed.invalidate()
+    }
+
+    private fun showTabs() {
+        val deck = tabsDeck ?: LuminaTabsDeck(context).also {
+            it.onNewTab = { hideTabs(); onSearchTap?.invoke() }
+            it.onDismiss = { }
+            addView(it, android.widget.FrameLayout.LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
+            tabsDeck = it
+        }
+        deck.render(knownTabs)
+        deck.show(this)
+    }
+
+    private fun hideTabs() {
+        tabsDeck?.hide()
+    }
+
+    /** The browser is the source of truth: the host fills this in when it knows the tabs. */
+    fun setTabs(tabs: List<LuminaTabsDeck.Tab>) {
+        knownTabs = tabs
+        tabsDeck?.render(tabs)
+    }
+
+    /** Types into the browser's real address bar and submits, so one code path searches and opens. */
+    fun submitToOmnibar(text: String) {
+        val root = parent as? ViewGroup ?: rootView as? ViewGroup ?: return
+        val input = runCatching { root.findViewById<EditText>(R.id.omnibarTextInput) }.getOrNull()
+        if (input != null) {
+            input.requestFocus()
+            input.setText(text)
+            input.setSelection(input.text.length)
+            input.onEditorAction(EditorInfo.IME_ACTION_GO)
+        } else {
+            onOpenUrl?.invoke(text)
+        }
+    }
+
+    fun hideSheets() {
+        currentSheet?.dismiss()
+        tabsDeck?.hide()
     }
 
     /* --------------------------------------------------------------------------------------- */
