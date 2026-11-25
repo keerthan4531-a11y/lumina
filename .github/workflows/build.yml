@@ -157,8 +157,8 @@ jobs:
             exit "$code"
           fi
 
-      - name: Wire the glass UI into the fork (P3)
-        run: python3 scripts/p3_wire_ntp.py --repo app-fork
+      - name: Wire the Lumina home page into the fork (P3.3)
+        run: python3 scripts/p3_wire_home.py --repo app-fork
 
       - name: Build browser APK
         working-directory: app-fork
