@@ -1,23 +1,21 @@
 # Lumina — build progress
 
-Last updated: 2026-11-21 · branch `arena/60272fff-lumina`
+Last updated: 2026-11-25 · branch `arena/07a96f3f-lumina`
 
-## ✅ It builds — two installable APKs
+## ✅ It builds — one installable APK
 
 | APK | What it is | Link |
 |---|---|---|
-| **Lumina demo** (8.1 MB, R8) | the glass UI running on a device — home, omnibar, results, tabs, sheets | [releases/latest](https://github.com/keerthan4531-a11y/lumina/releases/latest) |
-| **Lumina browser (P3)** (179 MB, debug) | **the real thing**: duckduckgo/Android forked → `app.lumina.browser` **with the glass home page wired in** | [`fork-0.1.7-browser`](https://github.com/keerthan4531-a11y/lumina/releases/tag/fork-0.1.7-browser) |
+| **Lumina browser (P3.3)** (188 MB, debug) | DuckDuckGo engine + `app.lumina.browser` + **native glass home page**: frosted glass views, floating bottom bar with a travelling glow, real Google News feed, topic chips | [`fork-0.3.1-browser`](https://github.com/keerthan4531-a11y/lumina/releases/tag/fork-0.3.1-browser) |
 
-Every push builds both in GitHub Actions (`.github/workflows/build.yml`), so the UI and the fork are
-*verified by a compiler*, not by hope. Android Studio not required.
+> The Compose demo project is retired (AGP 8 / Kotlin 2.0). There is exactly one build target:
+> the browser fork. `lumina-android/` is copied into its app module by `scripts/p3_wire_home.py`.
 
 Legend: ✅ done · 🟡 partial / needs a device · ⬜ not started
 
 > **How the build happens:** this sandbox has no JDK/Android SDK, so compilation runs on GitHub
-> Actions runners (JDK 17 + SDK 35 + Gradle 8.9). Push → build → APK artifact + GitHub Release.
-> The browser fork (upstream needs JDK 21 + SDK 36) builds in the `browser-fork-apk` job, triggered
-> by a `fork-*` tag or a manual dispatch.
+> Actions runners (JDK 21 + SDK 36/37). A `fork-*` tag → `browser-fork-apk` → APK artifact +
+> GitHub Release. Nothing is verified by hand.
 
 ---
 
