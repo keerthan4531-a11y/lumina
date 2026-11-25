@@ -85,7 +85,7 @@ class LuminaHomeHost @JvmOverloads constructor(
 
     private fun buildScroll() {
         scroll.isFillViewport = true
-        scroll.overScrollMode = OVER_SCROLL_NEVER
+        scroll.overScrollMode = android.view.View.OVER_SCROLL_NEVER
         scroll.clipToPadding = false
         content.orientation = LinearLayout.VERTICAL
         content.setPadding(dp(18), 0, dp(18), dp(120))
@@ -142,7 +142,7 @@ class LuminaHomeHost @JvmOverloads constructor(
     private fun buildChips(): View {
         val scroller = HorizontalScrollView(context).apply {
             isHorizontalScrollBarEnabled = false
-            overScrollMode = OVER_SCROLL_NEVER
+            overScrollMode = android.view.View.OVER_SCROLL_NEVER
             clipToPadding = false
         }
         chips.orientation = LinearLayout.HORIZONTAL

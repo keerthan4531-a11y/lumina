@@ -44,7 +44,7 @@ class LuminaTabsDeck @JvmOverloads constructor(
         val scroll = ScrollView(context).apply {
             isFillViewport = true
             clipToPadding = false
-            overScrollMode = OVER_SCROLL_NEVER
+            overScrollMode = android.view.View.OVER_SCROLL_NEVER
         }
         grid.orientation = LinearLayout.VERTICAL
         grid.setPadding(dp(16), dp(14), dp(16), dp(120))
@@ -195,8 +195,8 @@ class LuminaTabsDeck @JvmOverloads constructor(
     }
 
     fun show(parent: android.view.ViewGroup) {
-        if (parentView !== parent) {
-            (parentView as? android.view.ViewGroup)?.removeView(this)
+        if (this.parent !== parent) {
+            (this.parent as? android.view.ViewGroup)?.removeView(this)
             parent.addView(this, android.view.ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT))
         }
         visibility = VISIBLE

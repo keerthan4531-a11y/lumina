@@ -159,8 +159,8 @@ class LuminaSheet @JvmOverloads constructor(
     fun show(parent: ViewGroup) {
         if (shown) return
         shown = true
-        if (parentView !== parent) {
-            (parentView as? ViewGroup)?.removeView(this)
+        if (this.parent !== parent) {
+            (this.parent as? ViewGroup)?.removeView(this)
             parent.addView(this, ViewGroup.LayoutParams(android.view.ViewGroup.LayoutParams.MATCH_PARENT, android.view.ViewGroup.LayoutParams.MATCH_PARENT))
         }
         visibility = VISIBLE

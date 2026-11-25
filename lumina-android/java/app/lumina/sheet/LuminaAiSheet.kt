@@ -125,7 +125,7 @@ object LuminaAiSheet {
     private fun suggestions(context: Context, onPick: (String) -> Unit): View {
         val scroller = android.widget.HorizontalScrollView(context).apply {
             isHorizontalScrollBarEnabled = false
-            overScrollMode = OVER_SCROLL_NEVER
+            overScrollMode = android.view.View.OVER_SCROLL_NEVER
             clipToPadding = false
         }
         val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
